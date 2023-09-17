@@ -4,6 +4,7 @@ Read a 'pore designer' config file to launch of continue a pore design job.
 
 
 from pathlib import Path
+import shutil
 import json
 
 import typer
@@ -94,18 +95,37 @@ def design_pore(
         config = json.load(config_file)
 
     # setup the symmetry dict for proteinmpnn unless we already have it
+    symmetry_path = Path(config["input_pdb"]).with_name("input.symm.jsonl")
     if config["symmetry_dict"] is None:
         symmetry_dict = proteinmpnn.make_symmetry_dict(Path(config["input_pdb"]))
-        proteinmpnn.save_symmetry_dict(
-            symmetry_dict, Path(config["input_pdb"]).with_name("input.symm.jsonl")
-        )
-    symmetry_file = config["symmetry_dict"]
+        proteinmpnn.save_symmetry_dict(symmetry_dict, symmetry_path)
+        config["symmetry_dict"] = symmetry_path
+    else:
+        shutil.copy(config["symmetry_dict"], symmetry_path)
+        proteinmpnn.rekey_symmetry_dict(symmetry_path)
+    config["symmetry_dict"] = str(symmetry_path)
 
-    # TODO: run proteinmpnn
+    # run proteinmpnn and get the best sequences
+    if not proteinmpnn.have_top_results(config):
+        if proteinmpnn.get_num_to_design(config) > 0:
+            proteinmpnn_script = proteinmpnn.make_shell_script(config)
+            proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
-    # TODO: determine how many sequences for each category (score, recovery, frequency, etc.)
-    # TODO: get the consensus sequence from proteinmpnn
-    # TODO: add remaining sequences by category
+        proteinmpnn_seqs = proteinmpnn.select_top_sequences(config)
+        proteinmpnn_seqs_dict = [seq._asdict() for seq in proteinmpnn_seqs]
+        proteinmpnn.save_top_sequences(config, proteinmpnn_seqs_dict)
+
+    proteinmpnn_seqs = proteinmpnn.load_top_sequences(config)
+
+    print(proteinmpnn_seqs)
+
+    # TODO: run AF2 on the top ProteinMPNN designs
+    # TODO: pick the winners
+
+    # TODO: if a multimer, run the AF2 multimer check
+    # TODO: pick the winners
+
+    # TODO: report the winners
 
     print(config)
 
