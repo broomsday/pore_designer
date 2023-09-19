@@ -127,7 +127,7 @@ def make_shell_script(config: dict) -> str:
     shell_script += f"--tied_positions_jsonl {tied} "
     shell_script += f"--out_folder {mpnn_folder} "
     shell_script += f"--num_seq_per_target {designs} "
-    shell_script += "--sampling_temp 0.1 "
+    shell_script += f"--sampling_temp {config['temperature_mpnn']} "
     shell_script += "--use_soluble_model"
 
     return shell_script
@@ -144,6 +144,7 @@ def run_proteinmpnn(shell_script: str) -> None:
     """
     Run ProteinMPNN.
     """
+    print("Running ProteinMPNN")
     subprocess.run(
         shell_script,
         shell=True,
@@ -173,8 +174,9 @@ def get_num_to_design(config: str) -> int:
     num_to_design = config["num_mpnn"]
 
     designed_seqs = get_all_sequences(config)
+    num_wt_seqs = len(list((get_proteinmpnn_folder(config) / "seqs").glob("*.fa")))
 
-    return num_to_design - len(designed_seqs)
+    return num_to_design - (len(designed_seqs) - num_wt_seqs)
 
 
 def get_sequences(fasta: Path) -> list[MPNNSeq]:
@@ -232,25 +234,32 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
     )
 
     # add the consensus and frequency scores for all the sequences
-    scored_seqs = [
-        MPNNSeq(
-            sequence=seq.sequence,
-            merged_sequence=seq.merged_sequence,
-            unique_chains=seq.unique_chains,
-            score=seq.score,
-            recovery=seq.recovery,
-            source=seq.source,
-            consensus=sequence.compute_identity(
-                merged_consensus_sequence, seq.merged_sequence
-            ),
-            frequency=sequence.compute_blosum_similarity_by_frequency(
-                seq.merged_sequence, frequencies
-            ),
-            selection=None,
+    unique_seq_list = []
+    scored_seqs = []
+    for seq in tqdm(seqs, desc="Scoring sequences"):
+        if seq.sequence in unique_seq_list:
+            continue
+        if seq.source == "wt":
+            continue
+
+        unique_seq_list.append(seq.sequence)
+        scored_seqs.append(
+            MPNNSeq(
+                sequence=seq.sequence,
+                merged_sequence=seq.merged_sequence,
+                unique_chains=seq.unique_chains,
+                score=seq.score,
+                recovery=seq.recovery,
+                source=seq.source,
+                consensus=sequence.compute_identity(
+                    merged_consensus_sequence, seq.merged_sequence
+                ),
+                frequency=sequence.compute_blosum_similarity_by_frequency(
+                    seq.merged_sequence, frequencies
+                ),
+                selection=None,
+            )
         )
-        for seq in tqdm(seqs, desc="Scoring sequences")
-        if seq.source != "wt"
-    ]
 
     # start the list of selected sequences with the consensus
     selected_seqs = [
@@ -296,6 +305,10 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
 
 
 def get_selection_types(config: dict, preselected: list[str]) -> list[str]:
+    """
+    Get a list of the different selection types (e.g. top score, top recovery)
+    that will be used to build the final selection.
+    """
     num_to_select = config["num_af2"] - len(preselected)
     selected_types = (
         MPNN_HIT_TYPE_ORDER * (int(num_to_select / len(MPNN_HIT_TYPE_ORDER)) + 1)

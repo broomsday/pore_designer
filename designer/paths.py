@@ -36,3 +36,23 @@ def get_conda_source_path() -> Path | None:
             "You need to set the 'CONDA_SOURCE' environment variable to point to conda's sourch.sh script"
         )
         quit()
+
+
+def get_alphafold_input_path(config: dict, phase: str) -> Path:
+    """
+    Return the path to the alphafold input.csv
+    """
+    return Path(config["directory"]) / "input" / f"AF2_{phase}_input.csv"
+
+
+def get_alphafold_source_path() -> Path | None:
+    """
+    Use an environment variable to determine where the alphafold conda source is located.
+    """
+    try:
+        return os.environ["ALPHAFOLD_ENV"]
+    except KeyError:
+        print(
+            "You need to set the 'ALPHAFOLD_ENV' environment variable to point to the conda sourch script for colabfold"
+        )
+        quit()
