@@ -5,15 +5,19 @@ Functions for using AlphaFold2.
 
 from pathlib import Path
 import subprocess
+import shutil
 from typing import NamedTuple
+import json
 
 import pandas as pd
+from tqdm import tqdm
 
 from designer.proteinmpnn import MPNNSeq
-from designer import paths
+from designer import proteinmpnn, file_utils, pdb, paths, sequence
 
 
-class AFSeq(NamedTuple):
+class SelectSeq(NamedTuple):
+    id: str
     sequence: str
     merged_sequence: str
     unique_chains: int
@@ -23,6 +27,12 @@ class AFSeq(NamedTuple):
     consensus: float
     frequency: float
     selection: str
+    top_plddt: float
+    mean_plddt: float
+    top_rmsd: float
+    mean_rmsd: float
+    top_oligomer: int
+    designed_oligomer_rank: int
 
 
 def make_id(seq: MPNNSeq, index: int) -> str:
@@ -113,54 +123,242 @@ def run_af2_batch(shell_script: str) -> None:
     )
 
 
+def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
+    """
+    Compile all the alphafold and proteinmpnn metrics together.
+    """
+    # load the ProteinMPNN sequence data
+    proteinmpnn_seqs = proteinmpnn.load_top_sequences(config)
+    # build a list of just the merged sequences for cross-reference lookup
+    proteinmpnn_merged_sequences = [seq.merged_sequence for seq in proteinmpnn_seqs]
+    # load the FULL alphafold input for cross-referencing with above
+    alphafold_input = make_af2_design_input(proteinmpnn_seqs, [])
+
+    # cleanup the alphafold results (last run with have left unzipped contents)
+    alphafold_result_dir = Path(config["directory"]) / "AlphaFold" / phase / "outputs"
+    file_utils.keep_files_by_suffix(alphafold_result_dir, [".zip"])
+
+    # for each result, pull out alphafold metrics and combine with proteinmpnn metrics
+    seqs = []
+    for result_file in tqdm(
+        list(alphafold_result_dir.glob("*.zip")), desc="Computing Alphafold Results"
+    ):
+        sequence_id = result_file.stem.replace(".result", "")
+        result_dir = alphafold_result_dir / sequence_id
+
+        # unzip result file
+        file_utils.unzip_af2_prediction(
+            result_file,
+            result_dir,
+        )
+
+        # pull out plddts
+        top_plddt = file_utils.get_average_plddt(result_dir, top_only=True)
+        mean_plddt = file_utils.get_average_plddt(result_dir, top_only=False)
+
+        # compute RMSD
+        input_pdb = paths.get_input_pdb_path(config)
+        top_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=True)
+        mean_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=False)
+
+        # optionally compute the oligomer check
+        if config["multimer"] > 1:
+            top_oligomer = None  # TODO:
+            designed_oligomer_rank = None  # TODO:
+        else:
+            top_oligomer = None
+            designed_oligomer_rank = None
+
+        # cross-reference the sequence with proteinmpnn to get proteinmpnn metrics
+        merged_sequence = alphafold_input.loc[sequence_id].sequence.replace(":", "")
+        sequence_index = proteinmpnn_merged_sequences.index(merged_sequence)
+        proteinmpnn_seq = proteinmpnn_seqs[sequence_index]
+
+        # contruct the SelectSeq object and append
+        seq = SelectSeq(
+            id=sequence_id,
+            sequence=proteinmpnn_seq.sequence,
+            merged_sequence=proteinmpnn_seq.merged_sequence,
+            unique_chains=proteinmpnn_seq.unique_chains,
+            score=proteinmpnn_seq.score,
+            recovery=proteinmpnn_seq.recovery,
+            source=proteinmpnn_seq.source,
+            consensus=proteinmpnn_seq.consensus,
+            frequency=proteinmpnn_seq.frequency,
+            selection=proteinmpnn_seq.selection,
+            top_plddt=top_plddt,
+            mean_plddt=mean_plddt,
+            top_rmsd=top_rmsd,
+            mean_rmsd=mean_rmsd,
+            top_oligomer=top_oligomer,
+            designed_oligomer_rank=designed_oligomer_rank,
+        )
+        seqs.append(seq)
+
+    return seqs
+
+
+def passes_criteria(
+    seq: SelectSeq,
+    top_plddt: float,
+    mean_plddt: float,
+    top_rmsd: float,
+    mean_rmsd: float,
+    oligomer: int,
+) -> bool:
+    """
+    Check if the given sequence passes the AlphaFold criteria
+    """
+    if seq.top_plddt < top_plddt:
+        return False
+    if seq.mean_plddt < mean_plddt:
+        return False
+    if seq.top_rmsd > top_rmsd:
+        return False
+    if seq.mean_rmsd > mean_rmsd:
+        return False
+    if (seq.designed_oligomer_rank is not None) and (
+        seq.designed_oligomer_rank < oligomer
+    ):
+        return False
+
+    return True
+
+
 def select_top(
-    config: dict,
-    plddt: float = 0.9,
-    rmsd: float = 1.0,
+    evaluated_seqs: list[SelectSeq],
+    top_plddt: float = 90,
+    mean_plddt: float = 80,
+    top_rmsd: float = 1.0,
+    mean_rmsd: float = 2.0,
     oligomer: int | None = None,
-    identity: float = 0.9,
-) -> list[AFSeq]:
+    max_identity: float = 0.9,
+) -> list[SelectSeq]:
     """
     Select the top AF2 sequences based on a set of criteria.
     """
-    # TODO: load the ProteinMPNN input seqs so that we have MPNNSeq data (proteinmpnn.load_top_sequences)
+    # filter based on plddt and RMSD
+    filtered_seqs = [
+        seq
+        for seq in evaluated_seqs
+        if passes_criteria(seq, top_plddt, mean_plddt, top_rmsd, mean_rmsd, oligomer)
+    ]
+    if len(filtered_seqs) == 0:
+        raise ValueError(
+            "plddt and/or rmsd cutoffs are too strict, no sequences found."
+        )
 
-    # TODO: unzip (utils.)
-    # TODO: pull out plddt (_.)
-    # TODO: compute RMSD (pdb.)
-    # TODO: optionally compute the oligomer check (_.)
-    # TODO:
-    pass
+    # keep only the best given the identity cutoff
+    filtered_seqs.sort(key=lambda seq: seq.top_rmsd)
+    selected_seqs = [filtered_seqs.pop(0)]
+    for filtered_seq in filtered_seqs:
+        fails_identity = False
+        for selected_seq in selected_seqs:
+            identity = sequence.compute_identity(
+                filtered_seq.merged_sequence, selected_seq.merged_sequence
+            )
+            if identity > max_identity:
+                fails_identity = True
+                break
+        if not fails_identity:
+            selected_seqs.append(filtered_seq)
+
+    return selected_seqs
 
 
-def have_selected(config: dict, phase: str) -> bool:
+def have_alphafold(config: dict, phase: str, stage: str) -> bool:
     """
-    Check if we have analyzed and selected the best sequences.
+    Check if we have analyzed the Alphafold runs.
     """
-    # TODO: code
-    return False
+    if stage == "results":
+        alphafold_file = paths.get_alphafold_results_path(config, phase)
+    elif stage == "selected":
+        alphafold_file = paths.get_alphafold_selected_path(config, phase)
+
+    return alphafold_file.is_file()
 
 
-def save_selected(config: dict, phase: str, selected: list[AFSeq]) -> None:
+def save_alphafold(config: dict, phase: str, stage: str, seqs: list[SelectSeq]) -> None:
     """
     Save the selected sequences.
     """
-    # TODO: code
-    pass
+    if stage == "results":
+        alphafold_file = paths.get_alphafold_results_path(config, phase)
+    elif stage == "selected":
+        alphafold_file = paths.get_alphafold_selected_path(config, phase)
+
+    seqs_dict = [seq._asdict() for seq in seqs]
+    with open(
+        alphafold_file,
+        mode="w",
+        encoding="utf-8",
+    ) as seq_file:
+        json.dump(seqs_dict, seq_file)
 
 
-def load_selected(config: dict, phase: str) -> list[AFSeq]:
+def load_alphafold(config: dict, phase: str, stage: str) -> list[SelectSeq]:
     """
     Load the selected sequences.
     """
-    # TODO: code
-    pass
+    if stage == "results":
+        alphafold_file = paths.get_alphafold_results_path(config, phase)
+    elif stage == "selected":
+        alphafold_file = paths.get_alphafold_selected_path(config, phase)
+
+    with open(
+        alphafold_file,
+        mode="r",
+        encoding="utf-8",
+    ) as seq_file:
+        seq_dict = json.load(seq_file)
+
+    selected_seqs = [
+        SelectSeq(
+            id=seq["id"],
+            sequence=seq["sequence"],
+            merged_sequence=seq["merged_sequence"],
+            unique_chains=seq["unique_chains"],
+            score=seq["score"],
+            recovery=seq["recovery"],
+            source=seq["source"],
+            consensus=seq["consensus"],
+            frequency=seq["frequency"],
+            selection=seq["selection"],
+            top_plddt=seq["top_plddt"],
+            mean_plddt=seq["mean_plddt"],
+            top_rmsd=seq["top_rmsd"],
+            mean_rmsd=seq["mean_rmsd"],
+            top_oligomer=seq["top_oligomer"],
+            designed_oligomer_rank=seq["designed_oligomer_rank"],
+        )
+        for seq in seq_dict
+    ]
+
+    return selected_seqs
 
 
-def report_selected(config: dict, selected: list) -> None:
+def report_selected(config: dict, selected: list[SelectSeq]) -> None:
     """
-    Save a dataframe of the selected sequences and copy over the AF2 PDBs.
-    Also produce and copy over the oligomer-check graphs if these are multimers.
+    Print out selected sequence report and move relevant files into a final report dir.
+    Save the report as a dataframe also.
     """
-    # TODO: code
-    pass
+    # make the final directory
+    final_directory = Path(config["directory"]) / "final_selected"
+    final_directory.mkdir(exist_ok=True)
+
+    for seq in selected:
+        seq_directory = final_directory / str(seq.id)
+        seq_directory.mkdir(exist_ok=True)
+
+        # copy over the PDBs for each winner
+        results_dir = (
+            Path(config["directory"]) / "AlphaFold" / "design" / "outputs" / seq.id
+        )
+        top_pdb = list(results_dir.glob("*rank_001*.pdb"))[0]
+        shutil.copy(top_pdb, seq_directory / f"{seq.id}.pdb")
+
+    # build a dataframe of the results, save, and print
+    selected_dict = [seq._asdict() for seq in selected]
+    selected_df = pd.DataFrame().from_dict(selected_dict)
+    selected_df.to_csv(Path(config["directory"]) / "final_selected.csv")
+    print(selected_df)

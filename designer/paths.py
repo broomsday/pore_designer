@@ -38,6 +38,13 @@ def get_conda_source_path() -> Path | None:
         quit()
 
 
+def get_input_pdb_path(config: dict) -> Path:
+    """
+    Return the path to the input PDB used for design.
+    """
+    return Path(config["directory"]) / "input" / "input.pdb"
+
+
 def get_alphafold_input_path(config: dict, phase: str) -> Path:
     """
     Return the path to the alphafold input.csv
@@ -56,3 +63,17 @@ def get_alphafold_source_path() -> Path | None:
             "You need to set the 'ALPHAFOLD_ENV' environment variable to point to the conda sourch script for colabfold"
         )
         quit()
+
+
+def get_alphafold_results_path(config: dict, phase: str) -> Path:
+    """
+    The path used for saving the AlphaFold results.
+    """
+    return Path(config["directory"]) / f"top_alphafold_{phase}_results.json"
+
+
+def get_alphafold_selected_path(config: dict, phase: str) -> Path:
+    """
+    The path used for saving the AlphaFold selected sequences.
+    """
+    return Path(config["directory"]) / f"top_alphafold_{phase}_selected.json"

@@ -321,14 +321,15 @@ def get_selection_types(config: dict, preselected: list[str]) -> list[str]:
     return selected_types
 
 
-def save_top_sequences(config: dict, sequences: list[dict]) -> None:
+def save_top_sequences(config: dict, seqs: list[MPNNSeq]) -> None:
     """
     Save the top sequences for later loading.
     """
+    seqs_dict = [seq._asdict() for seq in seqs]
     with open(
         Path(config["directory"]) / "top_mpnn_results.json", mode="w", encoding="utf-8"
     ) as seq_file:
-        json.dump(sequences, seq_file)
+        json.dump(seqs_dict, seq_file)
 
 
 def load_top_sequences(config: dict) -> list[MPNNSeq]:

@@ -10,7 +10,7 @@ import json
 import typer
 from biotite.structure.io import save_structure
 
-from designer import pdb, proteinmpnn, alphafold, utils, paths
+from designer import pdb, proteinmpnn, alphafold, paths
 
 
 app = typer.Typer()
@@ -32,10 +32,14 @@ def make_config(
         default=100, help="Number of design sequences to test by AlphaFold2"
     ),
     recycle_af2: int = typer.Option(default=3, help="Number of recycles to use in AF2"),
-    select_plddt: float = typer.Option(
-        default=0.9, help="AF2 pLDDT cutoff to select final sequences"
+    top_plddt: float = typer.Option(
+        default=90, help="AF2 pLDDT cutoff to select final sequences"
     ),
-    select_rmsd: float = typer.Option(default=1.0, help="Max RMSD for selection"),
+    mean_plddt: float = typer.Option(
+        default=80, help="AF2 pLDDT cutoff to select final sequences"
+    ),
+    top_rmsd: float = typer.Option(default=1.0, help="Max RMSD for selection"),
+    mean_rmsd: float = typer.Option(default=2.0, help="Max RMSD for selection"),
     select_identity: float = typer.Option(
         default=0.9, help="Maximum identity between any two selected sequences"
     ),
@@ -72,8 +76,10 @@ def make_config(
         "temperature_mpnn": temperature_mpnn,
         "num_af2": num_af2,
         "recycle_af2": recycle_af2,
-        "select_plddt": select_plddt,
-        "select_rmsd": select_rmsd,
+        "top_plddt": top_plddt,
+        "mean_plddt": mean_plddt,
+        "top_rmsd": top_rmsd,
+        "mean_rmsd": mean_rmsd,
         "select_identity": select_identity,
         "select_oligomer_rank": select_oligomer_rank,
         "multimer": pdb.get_multimer_state(clean_input_structure),
@@ -117,8 +123,7 @@ def design_pore(
             proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
         proteinmpnn_seqs = proteinmpnn.select_top_sequences(config)
-        proteinmpnn_seqs_dict = [seq._asdict() for seq in proteinmpnn_seqs]
-        proteinmpnn.save_top_sequences(config, proteinmpnn_seqs_dict)
+        proteinmpnn.save_top_sequences(config, proteinmpnn_seqs)
     proteinmpnn_seqs = proteinmpnn.load_top_sequences(config)
 
     # setup AF2 input file
@@ -133,43 +138,58 @@ def design_pore(
         alphafold_script = alphafold.make_shell_script(config, "design")
         alphafold.run_af2_batch(alphafold_script)
 
-    if not alphafold.have_selected(config, "design"):
-        # unzip everything, parse pLDDT, compute RMSD to the templates and filter
-        selected = alphafold.select_top(
-            config,
-            plddt=config["select_plddt"],
-            rmsd=config["select_rmsd"],
+    # analyze alphafold results
+    if not alphafold.have_alphafold(config, "design", "results"):
+        alphafold_results = alphafold.compile_alphafold_results(config, "design")
+        alphafold.save_alphafold(config, "design", "results", alphafold_results)
+    alphafold_results = alphafold.load_alphafold(config, "design", "results")
+
+    # select top sequences before any oligomer checking
+    if not alphafold.have_alphafold(config, "design", "selected"):
+        alphafold_selected = alphafold.select_top(
+            alphafold_results,
+            top_plddt=config["top_plddt"],
+            mean_plddt=config["mean_plddt"],
+            top_rmsd=config["top_rmsd"],
+            mean_rmsd=config["mean_rmsd"],
             oligomer=None,
-            identity=config["select_identity"],
+            max_identity=config["select_identity"],
         )
-        utils.save_selected(config, "design", selected)
-    selected = utils.load_selected(config, "design")
+        alphafold.save_alphafold(config, "design", "selected", alphafold_selected)
+    alphafold_selected = alphafold.load_alphafold(config, "design", "selected")
 
+    # TODO: perform the alphafold oligomer check for multimers
     if config["multimer"] > 1:
-        if not alphafold.have_selected(config, "oligomer"):
-            # generate the oligomer check inputs
-            af2_input_df = alphafold.make_af2_oligomer_input(selected)
-            af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
-
-            # run the AF2 oligomer check
-            alphafold_script = alphafold.make_shell_script(config, "oligomer")
-            alphafold.run_af2_batch(alphafold_script)
-
-            # pick the winners of the oligomer check
-            selected = alphafold.select_top(
-                config,
-                plddt=config["select_plddt"],
-                rmsd=config["select_rmsd"],
-                oligomer=config["select_oligomer_rank"],
-                identity=config["select_identity"],
-            )
-            utils.save_selected(config, "oligomer", selected)
-        selected = utils.load_selected(config, "oligomer")
+        raise NotImplementedError("CODE multimer logic")
+    #    phase = "oligomer"
+    #    if not alphafold.have_alphafold(config, phase):
+    #        # generate the oligomer check inputs
+    #        af2_input_df = alphafold.make_af2_oligomer_input(selected)
+    #        af2_input_df.to_csv(paths.get_alphafold_input_path(config, phase))
+    #
+    #        # run the AF2 oligomer check
+    #        alphafold_script = alphafold.make_shell_script(config, phase)
+    #        alphafold.run_af2_batch(alphafold_script)
+    #
+    #        # TODO: follow pattern for non-oligomer
+    #
+    #        # pick the winners of the oligomer check
+    #        oligomer_selected = alphafold.select_top(
+    #            selected,
+    #            plddt=config["select_plddt"],
+    #            rmsd=config["select_rmsd"],
+    #            oligomer=config["select_oligomer_rank"],
+    #            identity=config["select_identity"],
+    #        )
+    #        alphafold.save_alphafold(config, phase, "selected", oligomer_selected)
+    #    oligomer_selected = alphafold.load_alphafold(config, phase)
 
     # report the winners and copy files
-    utils.report_selected(config, selected)
-
-    print(config)
+    if config["multimer"] == 1:
+        alphafold.report_selected(config, alphafold_selected)
+    else:
+        pass
+        # utils.report_selected(config, alphafold_oligomer_selected)
 
 
 if __name__ == "__main__":
