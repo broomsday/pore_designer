@@ -47,6 +47,14 @@ def make_config(
         default=1,
         help="Minimum oligomer check rank to be selected for oligomer designs",
     ),
+    oligomer_lower_offset: int = typer.Option(
+        default=3,
+        help="How many fewer oligomers to test when performing the oligomer check",
+    ),
+    oligomer_higher_offset: int = typer.Option(
+        default=4,
+        help="How many more oligomers to test when performing the oligomer check",
+    ),
     symmetry_dict: Path = typer.Option(
         default=None,
         help="If using a monomer from 'monomerizer' provide the symmetry dict output",
@@ -82,6 +90,8 @@ def make_config(
         "mean_rmsd": mean_rmsd,
         "select_identity": select_identity,
         "select_oligomer_rank": select_oligomer_rank,
+        "oligomer_lower_offset": oligomer_lower_offset,
+        "oligomer_higher_offset": oligomer_higher_offset,
         "multimer": pdb.get_multimer_state(clean_input_structure),
     }
 
@@ -134,7 +144,7 @@ def design_pore(
         )
         af2_input_df.to_csv(paths.get_alphafold_input_path(config, "design"))
 
-        # run AF2 batch and process the output
+        # run AF2 batch
         alphafold_script = alphafold.make_shell_script(config, "design")
         alphafold.run_af2_batch(alphafold_script)
 
@@ -158,38 +168,48 @@ def design_pore(
         alphafold.save_alphafold(config, "design", "selected", alphafold_selected)
     alphafold_selected = alphafold.load_alphafold(config, "design", "selected")
 
-    # TODO: perform the alphafold oligomer check for multimers
-    if config["multimer"] > 1:
-        raise NotImplementedError("CODE multimer logic")
-    #    phase = "oligomer"
-    #    if not alphafold.have_alphafold(config, phase):
-    #        # generate the oligomer check inputs
-    #        af2_input_df = alphafold.make_af2_oligomer_input(selected)
-    #        af2_input_df.to_csv(paths.get_alphafold_input_path(config, phase))
-    #
-    #        # run the AF2 oligomer check
-    #        alphafold_script = alphafold.make_shell_script(config, phase)
-    #        alphafold.run_af2_batch(alphafold_script)
-    #
-    #        # TODO: follow pattern for non-oligomer
-    #
-    #        # pick the winners of the oligomer check
-    #        oligomer_selected = alphafold.select_top(
-    #            selected,
-    #            plddt=config["select_plddt"],
-    #            rmsd=config["select_rmsd"],
-    #            oligomer=config["select_oligomer_rank"],
-    #            identity=config["select_identity"],
-    #        )
-    #        alphafold.save_alphafold(config, phase, "selected", oligomer_selected)
-    #    oligomer_selected = alphafold.load_alphafold(config, phase)
-
-    # report the winners and copy files
+    # if we're just doing a monomer, report now
     if config["multimer"] == 1:
         alphafold.report_selected(config, alphafold_selected)
-    else:
-        pass
-        # utils.report_selected(config, alphafold_oligomer_selected)
+        quit()
+
+    # perform the alphafold oligomer check for multimers
+    completed_af2_ids = alphafold.get_completed_ids(config, "oligomer")
+    if len(completed_af2_ids) < (
+        len(alphafold_selected)
+        * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
+    ):
+        af2_input_df = alphafold.make_af2_oligomer_input(
+            alphafold_selected, completed_af2_ids
+        )
+        af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
+
+        # run AF2 batch
+        alphafold_script = alphafold.make_shell_script(config, "oligomer")
+        alphafold.run_af2_batch(alphafold_script)
+
+    # analyze alphafold results
+    if not alphafold.have_alphafold(config, "oligomer", "results"):
+        oligomer_results = alphafold.compile_alphafold_results(config, "oligomer")
+        alphafold.save_alphafold(config, "oligomer", "results", oligomer_results)
+    oligomer_results = alphafold.load_alphafold(config, "oligomer", "results")
+
+    # select top sequences
+    if not alphafold.have_alphafold(config, "oligomer", "selected"):
+        oligomer_selected = alphafold.select_top(
+            alphafold_selected,
+            oligomer_results=oligomer_results,
+            top_plddt=config["top_plddt"],
+            mean_plddt=config["mean_plddt"],
+            top_rmsd=config["top_rmsd"],
+            mean_rmsd=config["mean_rmsd"],
+            oligomer=config["select_oligomer_rank"],
+            max_identity=config["select_identity"],
+        )
+        alphafold.save_alphafold(config, "oligomer", "selected", oligomer_selected)
+    oligomer_selected = alphafold.load_alphafold(config, "oligomer", "selected")
+
+    alphafold.report_selected(config, oligomer_selected)
 
 
 if __name__ == "__main__":

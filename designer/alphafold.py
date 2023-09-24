@@ -16,6 +16,10 @@ from designer.proteinmpnn import MPNNSeq
 from designer import proteinmpnn, file_utils, pdb, paths, sequence
 
 
+LOWER_OLIGOMERS = 3
+HIGHER_OLIGOMERS = 4
+
+
 class SelectSeq(NamedTuple):
     id: str
     sequence: str
@@ -73,12 +77,36 @@ def make_af2_design_input(
     return af2_inputs
 
 
-def make_af2_oligomer_input(selected_seqs: list) -> pd.DataFrame:
+def make_af2_oligomer_input(
+    selected_seqs: list, completed_ids: list[str]
+) -> pd.DataFrame:
     """
     Save sequences in oligomer format for checking.
     """
-    # TODO: code
-    pass
+    oligomer_dict = {"id": [], "sequence": []}
+    for selected_seq in selected_seqs:
+        designed_oligomer = len(selected_seq.sequence)
+        subunit_seq = [
+            selected_seq.sequence[i] for i in range(selected_seq.unique_chains)
+        ]
+
+        for oligomer_offset in range(LOWER_OLIGOMERS):
+            oligomers = designed_oligomer - oligomer_offset
+            oligomer_dict["id"].append(f"{selected_seq.id}_{oligomers}")
+            oligomer_dict["sequence"].append(":".join(subunit_seq * oligomers))
+
+        for oligomer_offset in range(HIGHER_OLIGOMERS):
+            oligomers = designed_oligomer + oligomer_offset
+            oligomer_dict["id"].append(f"{selected_seq.id}_{oligomers}")
+            oligomer_dict["sequence"].append(":".join(subunit_seq * oligomers))
+
+    af2_inputs = pd.DataFrame().from_dict(oligomer_dict)
+    af2_inputs = af2_inputs[~af2_inputs["id"].isin(completed_ids)]
+
+    af2_inputs = af2_inputs.set_index("id")
+    af2_inputs.index.name = "id"
+
+    return af2_inputs
 
 
 def make_shell_script(config: dict, phase: str) -> str:
@@ -163,8 +191,9 @@ def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
 
         # optionally compute the oligomer check
         if config["multimer"] > 1:
-            top_oligomer = None  # TODO:
-            designed_oligomer_rank = None  # TODO:
+            oligomer_ranks = compute_oligomer_ranks(config)
+            top_oligomer = min(oligomer_ranks, key=oligomer_ranks.get)
+            designed_oligomer_rank = oligomer_ranks[config["multimer"]]
         else:
             top_oligomer = None
             designed_oligomer_rank = None
@@ -227,6 +256,7 @@ def passes_criteria(
 
 def select_top(
     evaluated_seqs: list[SelectSeq],
+    oligomer_results: list[SelectSeq] | None = None,
     top_plddt: float = 90,
     mean_plddt: float = 80,
     top_rmsd: float = 1.0,
@@ -237,6 +267,9 @@ def select_top(
     """
     Select the top AF2 sequences based on a set of criteria.
     """
+    if oligomer_results is not None:
+        raise NotImplementedError("implement oligomer check stuff")
+
     # filter based on plddt and RMSD
     filtered_seqs = [
         seq
@@ -337,6 +370,14 @@ def load_alphafold(config: dict, phase: str, stage: str) -> list[SelectSeq]:
     return selected_seqs
 
 
+def compute_oligomer_ranks(config: dict) -> dict[int:float]:
+    """
+    Analyze the oligomer check data and report the plddt for each oligomer.
+    """
+    pass
+    raise NotImplementedError("code oligomer rank stuff once we have data")
+
+
 def report_selected(config: dict, selected: list[SelectSeq]) -> None:
     """
     Print out selected sequence report and move relevant files into a final report dir.
@@ -357,8 +398,20 @@ def report_selected(config: dict, selected: list[SelectSeq]) -> None:
         top_pdb = list(results_dir.glob("*rank_001*.pdb"))[0]
         shutil.copy(top_pdb, seq_directory / f"{seq.id}.pdb")
 
+    # if multimer, make the oligomer plots
+    if config["multimer"] > 1:
+        plot_oligomer_check(config)
+        pass
+
     # build a dataframe of the results, save, and print
     selected_dict = [seq._asdict() for seq in selected]
     selected_df = pd.DataFrame().from_dict(selected_dict)
     selected_df.to_csv(Path(config["directory"]) / "final_selected.csv")
     print(selected_df)
+
+
+def plot_oligomer_check(config) -> None:
+    """
+    Load the plddt values for each oligomer and plot
+    """
+    raise NotImplementedError("code oligomer plotting")
