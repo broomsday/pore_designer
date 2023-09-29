@@ -28,7 +28,7 @@ class SelectSeq(NamedTuple):
     score: float
     recovery: float
     source: str
-    consensus: float
+    mutation: float
     frequency: float
     selection: str
     top_plddt: float
@@ -190,7 +190,7 @@ def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
         mean_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=False)
 
         # optionally compute the oligomer check
-        if config["multimer"] > 1:
+        if (config["multimer"] > 1) and (phase == "oligomer"):
             oligomer_ranks = compute_oligomer_ranks(config)
             top_oligomer = min(oligomer_ranks, key=oligomer_ranks.get)
             designed_oligomer_rank = oligomer_ranks[config["multimer"]]
@@ -199,7 +199,7 @@ def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
             designed_oligomer_rank = None
 
         # cross-reference the sequence with proteinmpnn to get proteinmpnn metrics
-        merged_sequence = alphafold_input.loc[sequence_id].sequence.replace(":", "")
+        merged_sequence = alphafold_input.loc[sequence_id].sequence.replace(":", "_")
         sequence_index = proteinmpnn_merged_sequences.index(merged_sequence)
         proteinmpnn_seq = proteinmpnn_seqs[sequence_index]
 
@@ -212,7 +212,7 @@ def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
             score=proteinmpnn_seq.score,
             recovery=proteinmpnn_seq.recovery,
             source=proteinmpnn_seq.source,
-            consensus=proteinmpnn_seq.consensus,
+            mutation=proteinmpnn_seq.mutation,
             frequency=proteinmpnn_seq.frequency,
             selection=proteinmpnn_seq.selection,
             top_plddt=top_plddt,
@@ -278,7 +278,11 @@ def select_top(
     ]
     if len(filtered_seqs) == 0:
         raise ValueError(
-            "plddt and/or rmsd cutoffs are too strict, no sequences found."
+            "plddt and/or rmsd cutoffs are too strict, no sequences found.\n"
+            f"max top plddt: {max([seq.top_plddt for seq in evaluated_seqs])}\n"
+            f"max mean plddt: {max([seq.mean_plddt for seq in evaluated_seqs])}\n"
+            f"min top rmsd: {min([seq.top_rmsd for seq in evaluated_seqs])}\n"
+            f"min mean rmsd: {min([seq.mean_rmsd for seq in evaluated_seqs])}\n"
         )
 
     # keep only the best given the identity cutoff
@@ -354,7 +358,7 @@ def load_alphafold(config: dict, phase: str, stage: str) -> list[SelectSeq]:
             score=seq["score"],
             recovery=seq["recovery"],
             source=seq["source"],
-            consensus=seq["consensus"],
+            mutation=seq["mutation"],
             frequency=seq["frequency"],
             selection=seq["selection"],
             top_plddt=seq["top_plddt"],

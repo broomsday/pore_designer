@@ -48,7 +48,6 @@ AMINO_ACID_THREE_TO_ONE = {
     "VAL": "V",
     "TRP": "W",
     "TYR": "Y",
-    "4BF": "Y",
 }
 BLOSUM_DF = pd.read_csv(DATA_DIR / "blosum" / "blosum62.csv").set_index("aa")
 BLOSUM_MATRIX = {
@@ -56,4 +55,4 @@ BLOSUM_MATRIX = {
     for aa_one in CANONICAL_AMINO_ACIDS
 }
 
-MPNN_HIT_TYPE_ORDER = ["score", "recovery", "consensus", "frequency"]
+MPNN_HIT_TYPE_ORDER = ["score", "recovery", "mutation", "frequency"]

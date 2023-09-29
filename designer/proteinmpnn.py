@@ -27,7 +27,7 @@ class MPNNSeq(NamedTuple):
     score: float
     recovery: float
     source: str
-    consensus: float
+    mutation: float
     frequency: float
     selection: str
 
@@ -229,9 +229,7 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
         [seq.merged_sequence for seq in seqs]
     )
     merged_consensus_sequence = sequence.make_consensus_sequence(frequencies)
-    consensus_sequence = sequence.demerge_sequence(
-        merged_consensus_sequence, seqs[0].sequence
-    )
+    consensus_sequence = merged_consensus_sequence.split("_")
 
     # add the consensus and frequency scores for all the sequences
     unique_seq_list = []
@@ -251,7 +249,7 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
                 score=seq.score,
                 recovery=seq.recovery,
                 source=seq.source,
-                consensus=sequence.compute_identity(
+                mutation=sequence.compute_identity(
                     merged_consensus_sequence, seq.merged_sequence
                 ),
                 frequency=sequence.compute_blosum_similarity_by_frequency(
@@ -272,13 +270,13 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
                 wt_sequence.merged_sequence, merged_consensus_sequence
             ),
             source="consensus",
-            consensus=sequence.compute_identity(
+            mutation=sequence.compute_identity(
                 merged_consensus_sequence, merged_consensus_sequence
             ),
             frequency=sequence.compute_blosum_similarity_by_frequency(
                 merged_consensus_sequence, frequencies
             ),
-            selection="consensus_sequence",
+            selection="consensus",
         )
     ]
 
@@ -289,15 +287,15 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
 
     num_score = selected_types.count("score")
     num_recovery = selected_types.count("recovery")
-    num_consensus = selected_types.count("consensus")
+    num_mutation = selected_types.count("mutation")
     num_frequency = selected_types.count("frequency")
 
     scored_seqs.sort(key=lambda mpnnseq: mpnnseq.score, reverse=False)
     selected_seqs.extend(scored_seqs[:num_score])
     scored_seqs.sort(key=lambda mpnnseq: mpnnseq.recovery, reverse=True)
     selected_seqs.extend(scored_seqs[:num_recovery])
-    scored_seqs.sort(key=lambda mpnnseq: mpnnseq.consensus, reverse=True)
-    selected_seqs.extend(scored_seqs[:num_consensus])
+    scored_seqs.sort(key=lambda mpnnseq: mpnnseq.mutation, reverse=True)
+    selected_seqs.extend(scored_seqs[:num_mutation])
     scored_seqs.sort(key=lambda mpnnseq: mpnnseq.frequency, reverse=True)
     selected_seqs.extend(scored_seqs[:num_frequency])
 
@@ -313,10 +311,10 @@ def get_selection_types(config: dict, preselected: list[str]) -> list[str]:
     selected_types = (
         MPNN_HIT_TYPE_ORDER * (int(num_to_select / len(MPNN_HIT_TYPE_ORDER)) + 1)
     )[:num_to_select]
-    selected_types = preselected + selected_types
 
     type_order = {type: i for i, type in enumerate(MPNN_HIT_TYPE_ORDER)}
     selected_types.sort(key=lambda type: type_order.get(type, np.nan))
+    selected_types = preselected + selected_types
 
     return selected_types
 
@@ -359,7 +357,7 @@ def load_top_sequences(config: dict) -> list[MPNNSeq]:
             score=seq["score"],
             recovery=seq["recovery"],
             source=seq["source"],
-            consensus=seq["consensus"],
+            mutation=seq["mutation"],
             frequency=seq["frequency"],
             selection=selection_types[i],
         )
@@ -390,9 +388,9 @@ def parse_design(annotation: str, sequence: str) -> MPNNSeq:
     for seq in sequences:
         if seq not in unique_sequences:
             unique_sequences.append(seq)
-    merged_sequence = "_".join(unique_sequences)
-
     unique_chains = len(set(sequences))
+
+    merged_sequence = "_".join(sequences)
 
     score = [
         float(info.split("=")[1])
@@ -421,7 +419,7 @@ def parse_design(annotation: str, sequence: str) -> MPNNSeq:
         score=score,
         recovery=recovery,
         source=source,
-        consensus=np.nan,
+        mutation=np.nan,
         frequency=np.nan,
         selection=None,
     )

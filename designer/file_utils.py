@@ -61,8 +61,11 @@ def clean_af2_prediction_files(unzip_dir: Path) -> None:
     file_stem = f"{unzip_dir.parts[-1]}"
 
     # remove unnecessary files
-    os.remove(unzip_dir / f"{file_stem}.result.zip")
-    os.remove(unzip_dir / "cite.bibtex")
+    try:
+        os.remove(unzip_dir / f"{file_stem}.result.zip")
+        os.remove(unzip_dir / "cite.bibtex")
+    except FileNotFoundError:
+        pass  # zip only present if we copied it over, bibtex sometimes missing
     os.remove(unzip_dir / f"{file_stem}_predicted_aligned_error_v1.json")
 
     for image_file in unzip_dir.glob("*.png"):

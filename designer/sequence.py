@@ -93,20 +93,3 @@ def compute_identity(reference: str, query: str) -> float:
     return np.mean(
         [1 if reference[i] == query_aa else 0 for i, query_aa in enumerate(query)]
     )
-
-
-def demerge_sequence(merged_sequence: str, example_sequence: list[str]) -> list[str]:
-    """
-    Take a merged sequence and an example of an unmerged sequence from the same scaffold and
-    demerge the first sequence.
-    """
-    # TODO: need to check if this works as intended for multimer case, monomer is trivial
-    demerged_sequence = []
-    sequence_index = 0
-    for sequence_part in example_sequence:
-        demerged_sequence.append(
-            merged_sequence[sequence_index : sequence_index + len(sequence_part)]
-        )
-        sequence_index += len(sequence_part)
-
-    return demerged_sequence

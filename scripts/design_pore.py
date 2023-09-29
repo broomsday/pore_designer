@@ -167,6 +167,7 @@ def design_pore(
         )
         alphafold.save_alphafold(config, "design", "selected", alphafold_selected)
     alphafold_selected = alphafold.load_alphafold(config, "design", "selected")
+    print(f"Selected: {len(alphafold_selected)} sequences from initial design")
 
     # if we're just doing a monomer, report now
     if config["multimer"] == 1:
@@ -208,6 +209,7 @@ def design_pore(
         )
         alphafold.save_alphafold(config, "oligomer", "selected", oligomer_selected)
     oligomer_selected = alphafold.load_alphafold(config, "oligomer", "selected")
+    print(f"Selected: {len(oligomer_selected)} sequences from oligomer check")
 
     alphafold.report_selected(config, oligomer_selected)
 
