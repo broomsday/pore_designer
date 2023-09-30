@@ -91,12 +91,12 @@ def make_af2_oligomer_input(
         ]
 
         for oligomer_offset in range(LOWER_OLIGOMERS):
-            oligomers = designed_oligomer - oligomer_offset
+            oligomers = designed_oligomer - (oligomer_offset + 1)
             oligomer_dict["id"].append(f"{selected_seq.id}_{oligomers}")
             oligomer_dict["sequence"].append(":".join(subunit_seq * oligomers))
 
         for oligomer_offset in range(HIGHER_OLIGOMERS):
-            oligomers = designed_oligomer + oligomer_offset
+            oligomers = designed_oligomer + (oligomer_offset + 1)
             oligomer_dict["id"].append(f"{selected_seq.id}_{oligomers}")
             oligomer_dict["sequence"].append(":".join(subunit_seq * oligomers))
 
@@ -151,9 +151,9 @@ def run_af2_batch(shell_script: str) -> None:
     )
 
 
-def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
+def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
     """
-    Compile all the alphafold and proteinmpnn metrics together.
+    Compile all the alphafold and proteinmpnn metrics together for the designed sequences.
     """
     # load the ProteinMPNN sequence data
     proteinmpnn_seqs = proteinmpnn.load_top_sequences(config)
@@ -163,7 +163,9 @@ def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
     alphafold_input = make_af2_design_input(proteinmpnn_seqs, [])
 
     # cleanup the alphafold results (last run with have left unzipped contents)
-    alphafold_result_dir = Path(config["directory"]) / "AlphaFold" / phase / "outputs"
+    alphafold_result_dir = (
+        Path(config["directory"]) / "AlphaFold" / "design" / "outputs"
+    )
     file_utils.keep_files_by_suffix(alphafold_result_dir, [".zip"])
 
     # for each result, pull out alphafold metrics and combine with proteinmpnn metrics
@@ -189,15 +191,6 @@ def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
         top_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=True)
         mean_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=False)
 
-        # optionally compute the oligomer check
-        if (config["multimer"] > 1) and (phase == "oligomer"):
-            oligomer_ranks = compute_oligomer_ranks(config)
-            top_oligomer = min(oligomer_ranks, key=oligomer_ranks.get)
-            designed_oligomer_rank = oligomer_ranks[config["multimer"]]
-        else:
-            top_oligomer = None
-            designed_oligomer_rank = None
-
         # cross-reference the sequence with proteinmpnn to get proteinmpnn metrics
         merged_sequence = alphafold_input.loc[sequence_id].sequence.replace(":", "_")
         sequence_index = proteinmpnn_merged_sequences.index(merged_sequence)
@@ -219,12 +212,92 @@ def compile_alphafold_results(config: dict, phase: str) -> list[SelectSeq]:
             mean_plddt=mean_plddt,
             top_rmsd=top_rmsd,
             mean_rmsd=mean_rmsd,
-            top_oligomer=top_oligomer,
-            designed_oligomer_rank=designed_oligomer_rank,
+            top_oligomer=None,
+            designed_oligomer_rank=None,
         )
         seqs.append(seq)
 
     return seqs
+
+
+def compile_alphafold_oligomer_results(config: dict, designed_seqs: list[SelectSeq]):
+    """
+    Compile the alphafold metrics for the different oligomers and use that to report
+    the oligomer metrics for the designed sequences.
+    """
+    # cleanup the alphafold results (last run with have left unzipped contents)
+    alphafold_result_dir = (
+        Path(config["directory"]) / "AlphaFold" / "oligomer" / "outputs"
+    )
+    file_utils.keep_files_by_suffix(alphafold_result_dir, [".zip"])
+
+    # for each result, pull out alphafold metrics and combine with proteinmpnn metrics
+    oligomer_seqs = {"design_id": [], "oligomer": [], "top_plddt": [], "mean_plddt": []}
+    for result_file in tqdm(
+        list(alphafold_result_dir.glob("*.zip")), desc="Computing Alphafold Results"
+    ):
+        sequence_id = result_file.stem.replace(".result", "")
+        result_dir = alphafold_result_dir / sequence_id
+
+        # unzip result file
+        file_utils.unzip_af2_prediction(
+            result_file,
+            result_dir,
+        )
+
+        # parse the original design id and the oligomer number
+        id_parts = sequence_id.split("_")
+        design_id = "_".join(id_parts[:2])
+        oligomer = int(id_parts[-1])
+
+        # pull out plddts
+        top_plddt = file_utils.get_average_plddt(result_dir, top_only=True)
+        mean_plddt = file_utils.get_average_plddt(result_dir, top_only=False)
+
+        oligomer_seqs["design_id"].append(design_id)
+        oligomer_seqs["oligomer"].append(oligomer)
+        oligomer_seqs["top_plddt"].append(top_plddt)
+        oligomer_seqs["mean_plddt"].append(mean_plddt)
+
+    # add in the designed oligomer metrics
+    for designed_seq in designed_seqs:
+        oligomer_seqs["design_id"].append(designed_seq.id)
+        oligomer_seqs["oligomer"].append(config["multimer"])
+        oligomer_seqs["top_plddt"].append(designed_seq.top_plddt)
+        oligomer_seqs["mean_plddt"].append(designed_seq.mean_plddt)
+
+    # generate the new sequence info that includes the oligomer data
+    oligomer_df = pd.DataFrame().from_dict(oligomer_seqs)
+    updated_seqs = []
+    for designed_seq in designed_seqs:
+        design_df = oligomer_df[oligomer_df.design_id == designed_seq.id]
+        design_df = design_df.sort_values(by=["top_plddt"], ascending=False)
+        top_oligomer = int(design_df.iloc[0].oligomer)
+        designed_oligomer_rank = (
+            int(list(design_df.oligomer).index(config["multimer"])) + 1
+        )
+
+        seq = SelectSeq(
+            id=design_id,
+            sequence=designed_seq.sequence,
+            merged_sequence=designed_seq.merged_sequence,
+            unique_chains=designed_seq.unique_chains,
+            score=designed_seq.score,
+            recovery=designed_seq.recovery,
+            source=designed_seq.source,
+            mutation=designed_seq.mutation,
+            frequency=designed_seq.frequency,
+            selection=designed_seq.selection,
+            top_plddt=designed_seq.top_plddt,
+            mean_plddt=designed_seq.mean_plddt,
+            top_rmsd=designed_seq.top_rmsd,
+            mean_rmsd=designed_seq.mean_rmsd,
+            top_oligomer=top_oligomer,
+            designed_oligomer_rank=designed_oligomer_rank,
+        )
+        updated_seqs.append(seq)
+
+    return updated_seqs
 
 
 def passes_criteria(
@@ -233,7 +306,7 @@ def passes_criteria(
     mean_plddt: float,
     top_rmsd: float,
     mean_rmsd: float,
-    oligomer: int,
+    oligomer: int | None,
 ) -> bool:
     """
     Check if the given sequence passes the AlphaFold criteria
@@ -246,8 +319,10 @@ def passes_criteria(
         return False
     if seq.mean_rmsd > mean_rmsd:
         return False
-    if (seq.designed_oligomer_rank is not None) and (
-        seq.designed_oligomer_rank < oligomer
+    if (
+        (seq.designed_oligomer_rank is not None)
+        and (oligomer is not None)
+        and (seq.designed_oligomer_rank > oligomer)
     ):
         return False
 
@@ -256,7 +331,6 @@ def passes_criteria(
 
 def select_top(
     evaluated_seqs: list[SelectSeq],
-    oligomer_results: list[SelectSeq] | None = None,
     top_plddt: float = 90,
     mean_plddt: float = 80,
     top_rmsd: float = 1.0,
@@ -267,23 +341,26 @@ def select_top(
     """
     Select the top AF2 sequences based on a set of criteria.
     """
-    if oligomer_results is not None:
-        raise NotImplementedError("implement oligomer check stuff")
-
-    # filter based on plddt and RMSD
+    # filter based on plddt and RMSD and oligomer
     filtered_seqs = [
         seq
         for seq in evaluated_seqs
         if passes_criteria(seq, top_plddt, mean_plddt, top_rmsd, mean_rmsd, oligomer)
     ]
     if len(filtered_seqs) == 0:
-        raise ValueError(
-            "plddt and/or rmsd cutoffs are too strict, no sequences found.\n"
-            f"max top plddt: {max([seq.top_plddt for seq in evaluated_seqs])}\n"
-            f"max mean plddt: {max([seq.mean_plddt for seq in evaluated_seqs])}\n"
-            f"min top rmsd: {min([seq.top_rmsd for seq in evaluated_seqs])}\n"
-            f"min mean rmsd: {min([seq.mean_rmsd for seq in evaluated_seqs])}\n"
-        )
+        if oligomer is None:
+            raise ValueError(
+                "plddt and/or rmsd cutoffs are too strict, no sequences found.\n"
+                f"max top plddt: {max([seq.top_plddt for seq in evaluated_seqs])}\n"
+                f"max mean plddt: {max([seq.mean_plddt for seq in evaluated_seqs])}\n"
+                f"min top rmsd: {min([seq.top_rmsd for seq in evaluated_seqs])}\n"
+                f"min mean rmsd: {min([seq.mean_rmsd for seq in evaluated_seqs])}\n"
+            )
+        else:
+            raise ValueError(
+                "oligomer check is too strict, no sequences found.\n"
+                f"best rank: {min([seq.designed_oligomer_rank for seq in evaluated_seqs])}\n"
+            )
 
     # keep only the best given the identity cutoff
     filtered_seqs.sort(key=lambda seq: seq.top_rmsd)
@@ -374,14 +451,6 @@ def load_alphafold(config: dict, phase: str, stage: str) -> list[SelectSeq]:
     return selected_seqs
 
 
-def compute_oligomer_ranks(config: dict) -> dict[int:float]:
-    """
-    Analyze the oligomer check data and report the plddt for each oligomer.
-    """
-    pass
-    raise NotImplementedError("code oligomer rank stuff once we have data")
-
-
 def report_selected(config: dict, selected: list[SelectSeq]) -> None:
     """
     Print out selected sequence report and move relevant files into a final report dir.
@@ -399,6 +468,7 @@ def report_selected(config: dict, selected: list[SelectSeq]) -> None:
         results_dir = (
             Path(config["directory"]) / "AlphaFold" / "design" / "outputs" / seq.id
         )
+        print(results_dir)
         top_pdb = list(results_dir.glob("*rank_001*.pdb"))[0]
         shutil.copy(top_pdb, seq_directory / f"{seq.id}.pdb")
 
@@ -418,4 +488,5 @@ def plot_oligomer_check(config) -> None:
     """
     Load the plddt values for each oligomer and plot
     """
+    # TODO: plotting
     raise NotImplementedError("code oligomer plotting")

@@ -73,6 +73,7 @@ def make_config(
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "input").mkdir(exist_ok=True)
 
+    # clean the input structure
     clean_input_structure = pdb.clean_pdb(input_pdb)
     clean_input_pdb = output_dir / "input" / "input.pdb"
     save_structure(clean_input_pdb, clean_input_structure)
@@ -150,14 +151,14 @@ def design_pore(
 
     # analyze alphafold results
     if not alphafold.have_alphafold(config, "design", "results"):
-        alphafold_results = alphafold.compile_alphafold_results(config, "design")
-        alphafold.save_alphafold(config, "design", "results", alphafold_results)
-    alphafold_results = alphafold.load_alphafold(config, "design", "results")
+        design_results = alphafold.compile_alphafold_design_results(config)
+        alphafold.save_alphafold(config, "design", "results", design_results)
+    design_results = alphafold.load_alphafold(config, "design", "results")
 
     # select top sequences before any oligomer checking
     if not alphafold.have_alphafold(config, "design", "selected"):
-        alphafold_selected = alphafold.select_top(
-            alphafold_results,
+        design_selected = alphafold.select_top(
+            design_results,
             top_plddt=config["top_plddt"],
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
@@ -165,23 +166,22 @@ def design_pore(
             oligomer=None,
             max_identity=config["select_identity"],
         )
-        alphafold.save_alphafold(config, "design", "selected", alphafold_selected)
-    alphafold_selected = alphafold.load_alphafold(config, "design", "selected")
-    print(f"Selected: {len(alphafold_selected)} sequences from initial design")
+        alphafold.save_alphafold(config, "design", "selected", design_selected)
+    design_selected = alphafold.load_alphafold(config, "design", "selected")
+    print(f"Selected: {len(design_selected)} sequences from initial design")
 
     # if we're just doing a monomer, report now
     if config["multimer"] == 1:
-        alphafold.report_selected(config, alphafold_selected)
+        alphafold.report_selected(config, design_selected)
         quit()
 
     # perform the alphafold oligomer check for multimers
     completed_af2_ids = alphafold.get_completed_ids(config, "oligomer")
     if len(completed_af2_ids) < (
-        len(alphafold_selected)
-        * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
+        len(design_selected) * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
     ):
         af2_input_df = alphafold.make_af2_oligomer_input(
-            alphafold_selected, completed_af2_ids
+            design_selected, completed_af2_ids
         )
         af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
 
@@ -191,15 +191,16 @@ def design_pore(
 
     # analyze alphafold results
     if not alphafold.have_alphafold(config, "oligomer", "results"):
-        oligomer_results = alphafold.compile_alphafold_results(config, "oligomer")
+        oligomer_results = alphafold.compile_alphafold_oligomer_results(
+            config, design_selected
+        )
         alphafold.save_alphafold(config, "oligomer", "results", oligomer_results)
     oligomer_results = alphafold.load_alphafold(config, "oligomer", "results")
 
     # select top sequences
     if not alphafold.have_alphafold(config, "oligomer", "selected"):
         oligomer_selected = alphafold.select_top(
-            alphafold_selected,
-            oligomer_results=oligomer_results,
+            oligomer_results,
             top_plddt=config["top_plddt"],
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
