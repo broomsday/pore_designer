@@ -59,6 +59,10 @@ def make_config(
         default=None,
         help="If using a monomer from 'monomerizer' provide the symmetry dict output",
     ),
+    fixed_dict: Path = typer.Option(
+        default=None,
+        help="If using a monomer from 'monomerizer' optionally procide a fixed dict output",
+    ),
     overwrite: bool = typer.Option(default=False, help="Overwrite existing config"),
 ):
     """
@@ -96,10 +100,15 @@ def make_config(
         "multimer": pdb.get_multimer_state(clean_input_structure),
     }
 
-    if symmetry_dict is not None:
-        values["symmetry_dict"] = str(symmetry_dict.absolute())
-    else:
+    if symmetry_dict is None:
         values["symmetry_dict"] = None
+    else:
+        values["symmetry_dict"] = str(symmetry_dict.absolute())
+
+    if fixed_dict is None:
+        values["fixed_dict"] = None
+    else:
+        values["fixed_dict"] = str(fixed_dict.absolute())
 
     with open(output_dir / "config.json", mode="w", encoding="utf-8") as config_file:
         json.dump(values, config_file)
@@ -123,8 +132,15 @@ def design_pore(
         config["symmetry_dict"] = symmetry_path
     else:
         shutil.copy(config["symmetry_dict"], symmetry_path)
-        proteinmpnn.rekey_symmetry_dict(symmetry_path)
+        proteinmpnn.rekey_proteinmpnn_dict(symmetry_path)
     config["symmetry_dict"] = str(symmetry_path)
+
+    # setup the fixed dict for proteinmpnn if it was provided
+    if config["fixed_dict"] is not None:
+        fixed_path = Path(config["input_pdb"]).with_name("input.fixed.jsonl")
+        shutil.copy(config["fixed_dict"], fixed_path)
+        proteinmpnn.rekey_proteinmpnn_dict(fixed_path)
+        config["fixed_dict"] = str(fixed_path)
 
     # run proteinmpnn and get the best sequences
     if not proteinmpnn.have_top_results(config):

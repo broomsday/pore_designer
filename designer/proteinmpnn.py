@@ -84,24 +84,24 @@ def save_symmetry_dict(symmetry_dict: dict, symmetry_file: Path) -> None:
             writer.write(symmetry_dict)
 
 
-def rekey_symmetry_dict(symmetry_path: Path) -> None:
+def rekey_proteinmpnn_dict(dict_path: Path) -> None:
     """
     Adjust the key for the PDB name in the symmetry dict to be "input",
     which we use in this code.
     """
-    with jsonlines.open(symmetry_path) as reader:
+    with jsonlines.open(dict_path) as reader:
         for object in reader:
-            symmetry = object
+            dict = object
             break
 
-    for values in symmetry.values():
-        tied_values = values
+    for values in dict.values():
+        provided_values = values
         break
 
-    symmetry = {"input": tied_values}
+    new_dict = {"input": provided_values}
 
-    with jsonlines.open(symmetry_path, mode="w") as writer:
-        writer.write(symmetry)
+    with jsonlines.open(dict_path, mode="w") as writer:
+        writer.write(new_dict)
 
 
 def make_shell_script(config: dict) -> str:
@@ -113,6 +113,7 @@ def make_shell_script(config: dict) -> str:
 
     pdb = config["input_pdb"]
     tied = config["symmetry_dict"]
+    fixed = config["fixed_dict"]
     designs = get_num_to_design(config)
 
     if designs <= 0:
@@ -125,6 +126,8 @@ def make_shell_script(config: dict) -> str:
     shell_script += f"python {paths.get_proteinmpnn_path()}/protein_mpnn_run.py "
     shell_script += f"--pdb_path {pdb} "
     shell_script += f"--tied_positions_jsonl {tied} "
+    if fixed is not None:
+        shell_script += f"--fixed_positions_jsonl {fixed} "
     shell_script += f"--out_folder {mpnn_folder} "
     shell_script += f"--num_seq_per_target {designs} "
     shell_script += f"--sampling_temp {config['temperature_mpnn']} "
