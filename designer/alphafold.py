@@ -11,6 +11,7 @@ import json
 
 import pandas as pd
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from designer.proteinmpnn import MPNNSeq
 from designer import proteinmpnn, file_utils, pdb, paths, sequence
@@ -259,15 +260,18 @@ def compile_alphafold_oligomer_results(config: dict, designed_seqs: list[SelectS
         oligomer_seqs["top_plddt"].append(top_plddt)
         oligomer_seqs["mean_plddt"].append(mean_plddt)
 
-    # add in the designed oligomer metrics
+    # add in the initial designed oligomer metrics so we can compare against the oliogmer checked ones above
     for designed_seq in designed_seqs:
         oligomer_seqs["design_id"].append(designed_seq.id)
         oligomer_seqs["oligomer"].append(config["multimer"])
         oligomer_seqs["top_plddt"].append(designed_seq.top_plddt)
         oligomer_seqs["mean_plddt"].append(designed_seq.mean_plddt)
 
-    # generate the new sequence info that includes the oligomer data
+    # summarize the oligomer results
     oligomer_df = pd.DataFrame().from_dict(oligomer_seqs)
+    oligomer_df.to_csv(Path(config["directory"]) / "oligomer_values.csv")
+
+    # generate the new sequence info that includes the oligomer data
     updated_seqs = []
     for designed_seq in designed_seqs:
         design_df = oligomer_df[oligomer_df.design_id == designed_seq.id]
@@ -278,7 +282,7 @@ def compile_alphafold_oligomer_results(config: dict, designed_seqs: list[SelectS
         )
 
         seq = SelectSeq(
-            id=design_id,
+            id=designed_seq.id,
             sequence=designed_seq.sequence,
             merged_sequence=designed_seq.merged_sequence,
             unique_chains=designed_seq.unique_chains,
@@ -347,6 +351,7 @@ def select_top(
         for seq in evaluated_seqs
         if passes_criteria(seq, top_plddt, mean_plddt, top_rmsd, mean_rmsd, oligomer)
     ]
+
     if len(filtered_seqs) == 0:
         if oligomer is None:
             raise ValueError(
@@ -468,14 +473,12 @@ def report_selected(config: dict, selected: list[SelectSeq]) -> None:
         results_dir = (
             Path(config["directory"]) / "AlphaFold" / "design" / "outputs" / seq.id
         )
-        print(results_dir)
         top_pdb = list(results_dir.glob("*rank_001*.pdb"))[0]
         shutil.copy(top_pdb, seq_directory / f"{seq.id}.pdb")
 
     # if multimer, make the oligomer plots
     if config["multimer"] > 1:
         plot_oligomer_check(config)
-        pass
 
     # build a dataframe of the results, save, and print
     selected_dict = [seq._asdict() for seq in selected]
@@ -488,5 +491,74 @@ def plot_oligomer_check(config) -> None:
     """
     Load the plddt values for each oligomer and plot
     """
-    # TODO: plotting
-    raise NotImplementedError("code oligomer plotting")
+    # load the full and selected oligomer results
+    oligomer_values = pd.read_csv(
+        Path(config["directory"]) / "oligomer_values.csv", index_col=0
+    )
+    selected_seqs = load_alphafold(config, "oligomer", "selected")
+
+    # for each selected design, make the plots
+    final_directory = Path(config["directory"]) / "final_selected"
+    for selected in selected_seqs:
+        seq_directory = final_directory / str(selected.id)
+        selected_oligomer_values = oligomer_values[
+            oligomer_values["design_id"] == selected.id
+        ]
+
+        make_oligomer_v_plddt_plot(
+            selected_oligomer_values, selected.id, seq_directory, config["multimer"]
+        )
+
+
+def make_oligomer_v_plddt_plot(
+    oligomer_values: pd.DataFrame,
+    design_id: str,
+    save_dir: Path,
+    intended_oligomer: int,
+    min_plddt: float = 30,
+) -> None:
+    """
+    Produce a split plot of oligomer vs. plddt, one for top model only and one for all models.
+    """
+    figure, axes = plt.subplots(2, sharex=True, sharey=True)
+    axes[0].set_ylim(min_plddt, 100)
+    figure.set_figwidth(5)
+    figure.set_figheight(8)
+
+    # plot top pLDDT and best oligomer
+    axes[0].scatter(
+        oligomer_values.oligomer.to_list(), oligomer_values.top_plddt.to_list()
+    )
+    best_oligomer, best_plddt = get_best_oligomer(oligomer_values, "top_plddt")
+    axes[0].scatter(best_oligomer, best_plddt, c="red")
+
+    # plot mean pLDDT and best oligomer
+    axes[1].scatter(
+        oligomer_values.oligomer.to_list(), oligomer_values.mean_plddt.to_list()
+    )
+    best_oligomer, best_plddt = get_best_oligomer(oligomer_values, "mean_plddt")
+    axes[1].scatter(best_oligomer, best_plddt, c="red")
+
+    if intended_oligomer is not None:
+        axes[0].axvline(x=intended_oligomer, color="red")
+        axes[1].axvline(x=intended_oligomer, color="red")
+
+    axes[0].set_title(design_id)
+    axes[0].set(ylabel="top model pLDDT")
+    axes[1].set(xlabel="oligomers", ylabel="all models pLDDT")
+    plt.tight_layout()
+    plt.savefig(save_dir / f"{design_id}.png")
+    plt.close()
+
+
+def get_best_oligomer(
+    oligomer_values: pd.DataFrame, sort_column: str
+) -> tuple[int, float]:
+    """
+    Get the oligomer stoichiometry and plddt of the highest plddt oligomer.
+    """
+    assert sort_column in ["top_plddt", "mean_plddt"]
+
+    sorted_oligomers = oligomer_values.sort_values(by=[sort_column], ascending=False)
+
+    return sorted_oligomers.iloc[0]["oligomer"], sorted_oligomers.iloc[0][sort_column]

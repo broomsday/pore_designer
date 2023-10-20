@@ -12,6 +12,7 @@ tqdm = "^4.62.3"
 pandas = "^1.4.1"
 biotite = "^0.36.1"
 jsonlines = "^4.0.0"
+matplotlib = "^3.8.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.3"
