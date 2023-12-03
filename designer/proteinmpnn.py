@@ -267,7 +267,7 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
         MPNNSeq(
             sequence=consensus_sequence,
             merged_sequence=merged_consensus_sequence,
-            unique_chains=len(consensus_sequence),
+            unique_chains=len(set(consensus_sequence)),
             score=np.nan,
             recovery=sequence.compute_identity(
                 wt_sequence.merged_sequence, merged_consensus_sequence
