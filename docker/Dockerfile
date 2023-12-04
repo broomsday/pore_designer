@@ -15,41 +15,35 @@ RUN apt-get update \
 ENV CONDA_DIR /opt/conda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda
-
-# Put conda in path so we can use conda activate
 ENV PATH=$CONDA_DIR/bin:$PATH
 
-# setup ProteinMPNN
-RUN git clone https://github.com/dauparas/ProteinMPNN.git
-WORKDIR /ProteinMPNN
-SHELL ["/bin/bash", "--login", "-c"]
-RUN conda create --name mlfold
-RUN source activate mlfold
-RUN conda install -y pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
-RUN source deactivate
-
-# setup AlphaFold colab (above needs to be working though)
+# setup AlphaFold
 WORKDIR /AlphaFold
 RUN wget https://raw.githubusercontent.com/YoshitakaMo/localcolabfold/main/install_colabbatch_linux.sh
+SHELL ["/bin/bash", "--login", "-c"]
 RUN bash install_colabbatch_linux.sh
-RUN source activate /AlphaFold/localcolabfold/colabfold-conda
 RUN conda install -y cuda -c nvidia/label/cuda-11.6.0
-RUN source deactivate
 
 # setup pore-designer
 WORKDIR /
-RUN pip install poetry
-
 RUN git clone https://github.com/broomsday/pore_designer.git
 WORKDIR /pore_designer
-
 SHELL ["/bin/bash", "--login", "-c"]
+RUN pip install poetry
 RUN poetry config virtualenvs.create false \
     && poetry install 
-
 ENV PROTEINMPNN="/ProteinMPNN"
+ENV PROTEINMPNN_ENV="/ProteinMPNN/proteinmpnn-conda"
 ENV ALPHAFOLD_ENV="/AlphaFold/localcolabfold/colabfold-conda"
 ENV CONDA_SOURCE="/opt/conda/etc/profile.d/conda.sh"
+
+# setup ProteinMPNN
+WORKDIR /
+RUN git clone https://github.com/dauparas/ProteinMPNN.git
+RUN cp /pore_designer/scripts/install_proteinmpnn.sh /ProteinMPNN/install_proteinmpnn.sh
+WORKDIR /ProteinMPNN
+SHELL ["/bin/bash", "--login", "-c"]
+RUN bash install_proteinmpnn.sh
 
 # ready for design
 WORKDIR /workspace

@@ -122,7 +122,7 @@ def make_shell_script(config: dict) -> str:
     shell_script = "#!/bin/bash\n\n"
     shell_script += f"source {paths.get_conda_source_path()}\n"
     shell_script += "conda deactivate\n"
-    shell_script += "conda activate mlfold\n"
+    shell_script += f"conda activate {paths.get_proteinmpnn_source_path()}\n"
     shell_script += f"python {paths.get_proteinmpnn_path()}/protein_mpnn_run.py "
     shell_script += f"--pdb_path {pdb} "
     shell_script += f"--tied_positions_jsonl {tied} "
