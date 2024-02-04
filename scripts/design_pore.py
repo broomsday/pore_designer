@@ -2,7 +2,6 @@
 Read a 'pore designer' config file to launch of continue a pore design job.
 """
 
-
 from pathlib import Path
 import json
 
@@ -249,6 +248,7 @@ def make_config_metric(
         "recycle_af2": recycle_af2,
         "oligomer_lower_offset": oligomer_lower_offset,
         "oligomer_higher_offset": oligomer_higher_offset,
+        "multimer": max(input_data["oligomer"]),
     }
 
     with open(output_dir / "config.json", mode="w", encoding="utf-8") as config_file:

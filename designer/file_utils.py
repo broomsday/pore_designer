@@ -2,7 +2,6 @@
 Misc. helper functions.
 """
 
-
 from pathlib import Path
 import os
 import shutil
@@ -63,44 +62,61 @@ def clean_af2_prediction_files(unzip_dir: Path) -> None:
     # remove unnecessary files
     try:
         os.remove(unzip_dir / f"{file_stem}.result.zip")
+    except FileNotFoundError:
+        pass
+
+    try:
         os.remove(unzip_dir / "cite.bibtex")
     except FileNotFoundError:
-        pass  # zip only present if we copied it over, bibtex sometimes missing
-    os.remove(unzip_dir / f"{file_stem}_predicted_aligned_error_v1.json")
+        pass
 
     for image_file in unzip_dir.glob("*.png"):
-        os.remove(image_file)
+        try:
+            os.remove(image_file)
+        except FileNotFoundError:
+            pass
 
     # reduce .json files to just the pLDDT entries
-    for scores_file in unzip_dir.glob(f"{file_stem}*.json"):
-        with open(scores_file, mode="r", encoding="utf-8") as fi:
-            scores = json.load(fi)
-        plddts = {"plddt": scores["plddt"]}
+    # for scores_file in unzip_dir.glob(f"{file_stem}*.json"):
+    #    with open(scores_file, mode="r", encoding="utf-8") as fi:
+    #        scores = json.load(fi)
+    #        print(scores)
+    #    plddts = {"plddt": scores["plddt"]}
 
-        with open(scores_file, mode="w", encoding="utf-8") as fo:
-            json.dump(plddts, fo)
+    #    with open(scores_file, mode="w", encoding="utf-8") as fo:
+    #        json.dump(plddts, fo)
 
 
-def get_average_plddt(results_dir: Path, top_only: bool = True) -> float:
+def get_average_metric(
+    results_dir: Path, metric: str = "plddt", top_only: bool = True
+) -> float:
     """
-    If `top_only`, get the average pLDDT of the top ranked AF2 model.
+    If `top_only`, get the average `metric` of the top ranked AF2 model.
 
-    Otherwise return the average pLDDT across all 5 models.
+    Otherwise return the average `metric` across all 5 models.
     """
     try:
         if top_only:
             result_fp = list(results_dir.glob("*scores_rank_001*.json"))[0]
             result_df = pd.read_json(result_fp)
-            mean_plddt = np.mean(result_df["plddt"])
+            if metric == "pae":
+                result_df["mean_residue_pae"] = result_df["pae"].apply(np.mean)
+                mean_metric = np.mean(result_df["mean_residue_pae"])
+            else:
+                mean_metric = np.mean(result_df[metric])
         else:
             means = []
             for result_fp in results_dir.glob("*scores_rank*.json"):
                 result_df = pd.read_json(result_fp)
-                means.append(np.mean(result_df["plddt"]))
-            mean_plddt = np.mean(means)
+                if metric == "pae":
+                    result_df["mean_residue_pae"] = result_df["pae"].apply(np.mean)
+                    means.append(np.mean(result_df["mean_residue_pae"]))
+                else:
+                    means.append(np.mean(result_df[metric]))
+            mean_metric = np.mean(means)
     except IndexError:
         raise FileNotFoundError(
             f"This does not appear to be a directory of AlphaFold2 results. {results_dir}"
         )
 
-    return mean_plddt
+    return mean_metric

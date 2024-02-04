@@ -2,7 +2,6 @@
 Module to hold top-level design functions
 """
 
-
 from pathlib import Path
 import shutil
 import json
@@ -155,6 +154,32 @@ def design_pore_negative(
     print(config)
 
 
+def metric_test_to_select_seq(
+    pdb: str, sequence: str, oligomer: int
+) -> alphafold.SelectSeq:
+    """
+    Generate a SelectSeq object from a pdb_id, sequence, and oligomer count.
+    """
+    return alphafold.SelectSeq(
+        id=pdb,
+        sequence=[sequence] * oligomer,
+        merged_sequence=":".join([sequence] * oligomer),
+        unique_chains=len(sequence.split(":")),
+        score=None,
+        recovery=None,
+        source="wt",
+        mutation=None,
+        frequency=None,
+        selection=None,
+        top_plddt=None,
+        mean_plddt=None,
+        top_rmsd=None,
+        mean_rmsd=None,
+        top_oligomer=None,
+        designed_oligomer_rank=None,
+    )
+
+
 def produce_multimer_metrics(
     config_path: Path = typer.Argument(
         ..., help="Pore Design config file for metric production"
@@ -166,11 +191,78 @@ def produce_multimer_metrics(
     with open(config_path, mode="r", encoding="utf-8") as config_file:
         config = json.load(config_file)
 
+    # build the input data into SelectSeq objects
     input_data = pd.read_csv(config["input_csv"], index_col="pdb")
-    print(input_data)
+    metric_seqs = [
+        metric_test_to_select_seq(
+            input_data.index[idx],
+            input_data.iloc[idx]["sequence"],
+            input_data.iloc[idx]["oligomer"],
+        )
+        for idx in range(len(input_data.index))
+    ]
 
-    # TODO: evaluate metrics for all sequences at different multimer values
+    # run AF2 on the WT oligomer
+    completed_af2_ids = alphafold.get_completed_ids(config, "design")
+    if len(completed_af2_ids) < len(metric_seqs):
+        af2_input_df = alphafold.make_af2_wt_metric_input(
+            metric_seqs, completed_af2_ids
+        )
+        af2_input_df.to_csv(paths.get_alphafold_input_path(config, "design"))
 
-    # TODO: add mean PAE metric or RMS-PAE
+        # run AF2 batch
+        alphafold_script = alphafold.make_shell_script(config, "design")
+        alphafold.run_af2_batch(alphafold_script)
+
+    # run AF2 on the expanded oligomer cases
+    completed_af2_ids = alphafold.get_completed_ids(config, "oligomer")
+    if len(completed_af2_ids) < (
+        len(metric_seqs) * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
+    ):
+        af2_input_df = alphafold.make_af2_oligomer_input(metric_seqs, completed_af2_ids)
+        af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
+
+        # run AF2 batch
+        alphafold_script = alphafold.make_shell_script(config, "oligomer")
+        alphafold.run_af2_batch(alphafold_script)
+
+    # analyze ALL alphafold results
+    # TODO: 3) add mean PAE metric or RMS-PAE
+    # TODO: write a modified function that will do the analysis for EVERYTHING
+    oligomer_values_csv = Path(config["directory"]) / "oligomer_values.csv"
+    if not oligomer_values_csv.is_file():
+        oligomer_values = alphafold.compile_alphafold_metric_results(config)
+    else:
+        oligomer_values = pd.read_csv(oligomer_values_csv)
+
+    print(oligomer_values)
+    print("WT, top_plddt", oligomer_values[oligomer_values["wt"]]["top_plddt"].mean())
+    print("OL, top_plddt", oligomer_values[~oligomer_values["wt"]]["top_plddt"].mean())
+    print("WT, mean_plddt", oligomer_values[oligomer_values["wt"]]["mean_plddt"].mean())
+    print(
+        "OL, mean_plddt", oligomer_values[~oligomer_values["wt"]]["mean_plddt"].mean()
+    )
+    print("WT, top_pae", oligomer_values[oligomer_values["wt"]]["top_pae"].mean())
+    print("OL, top_pae", oligomer_values[~oligomer_values["wt"]]["top_pae"].mean())
+    print("WT, mean_pae", oligomer_values[oligomer_values["wt"]]["mean_pae"].mean())
+    print("OL, mean_pae", oligomer_values[~oligomer_values["wt"]]["mean_pae"].mean())
+    print(
+        "WT, top_max_pae", oligomer_values[oligomer_values["wt"]]["top_max_pae"].mean()
+    )
+    print(
+        "OL, top_max_pae", oligomer_values[~oligomer_values["wt"]]["top_max_pae"].mean()
+    )
+    print(
+        "WT, mean_max_pae",
+        oligomer_values[oligomer_values["wt"]]["mean_max_pae"].mean(),
+    )
+    print(
+        "OL, mean_max_pae",
+        oligomer_values[~oligomer_values["wt"]]["mean_max_pae"].mean(),
+    )
+    # use `oligomer_values.csv` along with the original `input_data` to plot the correlation of the true vs. top
+    #   oligomer
+
+    # TODO: 2) make plots of above
 
     print(config)

@@ -2,7 +2,6 @@
 Functions for using AlphaFold2.
 """
 
-
 from pathlib import Path
 import subprocess
 import shutil
@@ -59,6 +58,26 @@ def get_completed_ids(config: dict, phase: str) -> list[str]:
     ]
 
 
+def make_af2_wt_metric_input(
+    seqs: list[MPNNSeq], completed_ids: list[str]
+) -> pd.DataFrame:
+    """
+    Save the list of sequences as AF2 input.
+    """
+    seqs_dict = {
+        "id": [f"{seq.id}_{len(seq.sequence)}" for seq in seqs],
+        "sequence": [":".join(seq.sequence) for seq in seqs],
+    }
+
+    af2_inputs = pd.DataFrame().from_dict(seqs_dict)
+    af2_inputs = af2_inputs[~af2_inputs["id"].isin(completed_ids)]
+
+    af2_inputs = af2_inputs.set_index("id")
+    af2_inputs.index.name = "id"
+
+    return af2_inputs
+
+
 def make_af2_design_input(
     seqs: list[MPNNSeq], completed_ids: list[str]
 ) -> pd.DataFrame:
@@ -79,7 +98,7 @@ def make_af2_design_input(
 
 
 def make_af2_oligomer_input(
-    selected_seqs: list, completed_ids: list[str]
+    selected_seqs: list[SelectSeq], completed_ids: list[str]
 ) -> pd.DataFrame:
     """
     Save sequences in oligomer format for checking.
@@ -163,7 +182,7 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
     # load the FULL alphafold input for cross-referencing with above
     alphafold_input = make_af2_design_input(proteinmpnn_seqs, [])
 
-    # cleanup the alphafold results (last run with have left unzipped contents)
+    # cleanup the alphafold results (last run will have unzipped contents)
     alphafold_result_dir = (
         Path(config["directory"]) / "AlphaFold" / "design" / "outputs"
     )
@@ -221,7 +240,9 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
     return seqs
 
 
-def compile_alphafold_oligomer_results(config: dict, designed_seqs: list[SelectSeq]):
+def compile_alphafold_oligomer_results(
+    config: dict, designed_seqs: list[SelectSeq]
+) -> list[SelectSeq]:
     """
     Compile the alphafold metrics for the different oligomers and use that to report
     the oligomer metrics for the designed sequences.
@@ -302,6 +323,133 @@ def compile_alphafold_oligomer_results(config: dict, designed_seqs: list[SelectS
         updated_seqs.append(seq)
 
     return updated_seqs
+
+
+def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
+    """
+    Compile the alphafold metrics for BOTH the WT and Oligomers.
+    This function is specifically intended for use with the metric testing.
+    """
+    # process the WT oligomers
+    alphafold_result_dir = (
+        Path(config["directory"]) / "AlphaFold" / "design" / "outputs"
+    )
+    file_utils.keep_files_by_suffix(alphafold_result_dir, [".zip"])
+
+    # for each result, pull out alphafold metrics and combine with proteinmpnn metrics
+    oligomer_seqs = {
+        "design_id": [],
+        "oligomer": [],
+        "top_plddt": [],
+        "mean_plddt": [],
+        "top_pae": [],
+        "mean_pae": [],
+        "top_max_pae": [],
+        "mean_max_pae": [],
+        "wt": [],
+    }
+    for result_file in tqdm(
+        list(alphafold_result_dir.glob("*.zip")), desc="Computing Alphafold Results"
+    ):
+        sequence_id = result_file.stem.replace(".result", "")
+        result_dir = alphafold_result_dir / sequence_id
+
+        # unzip result file
+        file_utils.unzip_af2_prediction(
+            result_file,
+            result_dir,
+        )
+
+        # parse the original design id and the oligomer number
+        id_parts = sequence_id.split("_")
+        design_id = "_".join(id_parts[:2])
+        oligomer = int(id_parts[-1])
+
+        # pull out plddts and pae
+        top_plddt = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="plddt"
+        )
+        mean_plddt = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="plddt"
+        )
+        top_pae = file_utils.get_average_metric(result_dir, top_only=True, metric="pae")
+        mean_pae = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="pae"
+        )
+        top_max_pae = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="max_pae"
+        )
+        mean_max_pae = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="max_pae"
+        )
+
+        oligomer_seqs["design_id"].append(design_id)
+        oligomer_seqs["oligomer"].append(oligomer)
+        oligomer_seqs["top_plddt"].append(top_plddt)
+        oligomer_seqs["mean_plddt"].append(mean_plddt)
+        oligomer_seqs["top_pae"].append(top_pae)
+        oligomer_seqs["mean_pae"].append(mean_pae)
+        oligomer_seqs["top_max_pae"].append(top_max_pae)
+        oligomer_seqs["mean_max_pae"].append(mean_max_pae)
+        oligomer_seqs["wt"].append(True)
+
+    # Process the expanded oligomers
+    alphafold_result_dir = (
+        Path(config["directory"]) / "AlphaFold" / "oligomer" / "outputs"
+    )
+    file_utils.keep_files_by_suffix(alphafold_result_dir, [".zip"])
+
+    # for each result, pull out alphafold metrics and combine with proteinmpnn metrics
+    for result_file in tqdm(
+        list(alphafold_result_dir.glob("*.zip")), desc="Computing Alphafold Results"
+    ):
+        sequence_id = result_file.stem.replace(".result", "")
+        result_dir = alphafold_result_dir / sequence_id
+
+        # unzip result file
+        file_utils.unzip_af2_prediction(
+            result_file,
+            result_dir,
+        )
+
+        # parse the original design id and the oligomer number
+        id_parts = sequence_id.split("_")
+        design_id = "_".join(id_parts[:2])
+        oligomer = int(id_parts[-1])
+
+        # pull out plddts and pae
+        top_plddt = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="plddt"
+        )
+        mean_plddt = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="plddt"
+        )
+        top_pae = file_utils.get_average_metric(result_dir, top_only=True, metric="pae")
+        mean_pae = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="pae"
+        )
+        top_max_pae = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="max_pae"
+        )
+        mean_max_pae = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="max_pae"
+        )
+
+        oligomer_seqs["design_id"].append(design_id)
+        oligomer_seqs["oligomer"].append(oligomer)
+        oligomer_seqs["top_plddt"].append(top_plddt)
+        oligomer_seqs["mean_plddt"].append(mean_plddt)
+        oligomer_seqs["top_pae"].append(top_pae)
+        oligomer_seqs["mean_pae"].append(mean_pae)
+        oligomer_seqs["top_max_pae"].append(top_max_pae)
+        oligomer_seqs["mean_max_pae"].append(mean_max_pae)
+        oligomer_seqs["wt"].append(False)
+
+    # summarize the oligomer results into a dataframe for use in plotting etc.
+    oligomer_df = pd.DataFrame().from_dict(oligomer_seqs)
+    oligomer_df.to_csv(Path(config["directory"]) / "oligomer_values.csv")
+
+    return oligomer_df
 
 
 def passes_criteria(
