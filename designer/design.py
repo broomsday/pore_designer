@@ -9,7 +9,7 @@ import json
 import typer
 import pandas as pd
 
-from designer import proteinmpnn, alphafold, paths
+from designer import proteinmpnn, alphafold, paths, plotting
 
 
 def design_pore_positive(
@@ -227,42 +227,14 @@ def produce_multimer_metrics(
         alphafold.run_af2_batch(alphafold_script)
 
     # analyze ALL alphafold results
-    # TODO: 3) add mean PAE metric or RMS-PAE
-    # TODO: write a modified function that will do the analysis for EVERYTHING
     oligomer_values_csv = Path(config["directory"]) / "oligomer_values.csv"
     if not oligomer_values_csv.is_file():
         oligomer_values = alphafold.compile_alphafold_metric_results(config)
     else:
-        oligomer_values = pd.read_csv(oligomer_values_csv)
+        oligomer_values = pd.read_csv(oligomer_values_csv, index_col=0)
 
-    print(oligomer_values)
-    print("WT, top_plddt", oligomer_values[oligomer_values["wt"]]["top_plddt"].mean())
-    print("OL, top_plddt", oligomer_values[~oligomer_values["wt"]]["top_plddt"].mean())
-    print("WT, mean_plddt", oligomer_values[oligomer_values["wt"]]["mean_plddt"].mean())
-    print(
-        "OL, mean_plddt", oligomer_values[~oligomer_values["wt"]]["mean_plddt"].mean()
+    metric_correlations = plotting.compute_metric_correlations(oligomer_values)
+    plotting.plot_metric_correlations(
+        oligomer_values, Path(config["directory"]) / "metric_plots"
     )
-    print("WT, top_pae", oligomer_values[oligomer_values["wt"]]["top_pae"].mean())
-    print("OL, top_pae", oligomer_values[~oligomer_values["wt"]]["top_pae"].mean())
-    print("WT, mean_pae", oligomer_values[oligomer_values["wt"]]["mean_pae"].mean())
-    print("OL, mean_pae", oligomer_values[~oligomer_values["wt"]]["mean_pae"].mean())
-    print(
-        "WT, top_max_pae", oligomer_values[oligomer_values["wt"]]["top_max_pae"].mean()
-    )
-    print(
-        "OL, top_max_pae", oligomer_values[~oligomer_values["wt"]]["top_max_pae"].mean()
-    )
-    print(
-        "WT, mean_max_pae",
-        oligomer_values[oligomer_values["wt"]]["mean_max_pae"].mean(),
-    )
-    print(
-        "OL, mean_max_pae",
-        oligomer_values[~oligomer_values["wt"]]["mean_max_pae"].mean(),
-    )
-    # use `oligomer_values.csv` along with the original `input_data` to plot the correlation of the true vs. top
-    #   oligomer
-
-    # TODO: 2) make plots of above
-
-    print(config)
+    print(metric_correlations)

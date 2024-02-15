@@ -10,10 +10,9 @@ import json
 
 import pandas as pd
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 from designer.proteinmpnn import MPNNSeq
-from designer import proteinmpnn, file_utils, pdb, paths, sequence
+from designer import proteinmpnn, file_utils, pdb, paths, sequence, plotting
 
 
 LOWER_OLIGOMERS = 3
@@ -626,77 +625,13 @@ def report_selected(config: dict, selected: list[SelectSeq]) -> None:
 
     # if multimer, make the oligomer plots
     if config["multimer"] > 1:
-        plot_oligomer_check(config)
+        plotting.plot_oligomer_check(config)
 
     # build a dataframe of the results, save, and print
     selected_dict = [seq._asdict() for seq in selected]
     selected_df = pd.DataFrame().from_dict(selected_dict)
     selected_df.to_csv(Path(config["directory"]) / "final_selected.csv")
     print(selected_df)
-
-
-def plot_oligomer_check(config) -> None:
-    """
-    Load the plddt values for each oligomer and plot
-    """
-    # load the full and selected oligomer results
-    oligomer_values = pd.read_csv(
-        Path(config["directory"]) / "oligomer_values.csv", index_col=0
-    )
-    selected_seqs = load_alphafold(config, "oligomer", "selected")
-
-    # for each selected design, make the plots
-    final_directory = Path(config["directory"]) / "final_selected"
-    for selected in selected_seqs:
-        seq_directory = final_directory / str(selected.id)
-        selected_oligomer_values = oligomer_values[
-            oligomer_values["design_id"] == selected.id
-        ]
-
-        make_oligomer_v_plddt_plot(
-            selected_oligomer_values, selected.id, seq_directory, config["multimer"]
-        )
-
-
-def make_oligomer_v_plddt_plot(
-    oligomer_values: pd.DataFrame,
-    design_id: str,
-    save_dir: Path,
-    intended_oligomer: int,
-    min_plddt: float = 30,
-) -> None:
-    """
-    Produce a split plot of oligomer vs. plddt, one for top model only and one for all models.
-    """
-    figure, axes = plt.subplots(2, sharex=True, sharey=True)
-    axes[0].set_ylim(min_plddt, 100)
-    figure.set_figwidth(5)
-    figure.set_figheight(8)
-
-    # plot top pLDDT and best oligomer
-    axes[0].scatter(
-        oligomer_values.oligomer.to_list(), oligomer_values.top_plddt.to_list()
-    )
-    best_oligomer, best_plddt = get_best_oligomer(oligomer_values, "top_plddt")
-    axes[0].scatter(best_oligomer, best_plddt, c="red")
-
-    # plot mean pLDDT and best oligomer
-    axes[1].scatter(
-        oligomer_values.oligomer.to_list(), oligomer_values.mean_plddt.to_list()
-    )
-    best_oligomer, best_plddt = get_best_oligomer(oligomer_values, "mean_plddt")
-    axes[1].scatter(best_oligomer, best_plddt, c="red")
-
-    if intended_oligomer is not None:
-        axes[0].axvline(x=intended_oligomer, color="red")
-        axes[1].axvline(x=intended_oligomer, color="red")
-
-    axes[0].set_title(design_id)
-    axes[0].set(ylabel="top model pLDDT")
-    axes[1].set(xlabel="oligomers", ylabel="all models pLDDT")
-    plt.tight_layout()
-    plt.savefig(save_dir / f"{design_id}.png")
-    plt.close()
 
 
 def get_best_oligomer(
