@@ -174,7 +174,7 @@ def make_config_negative(
 
     # clean the positive input structure
     clean_positive_structure = pdb.clean_pdb(positive_pdb)
-    clean_positive_pdb = output_dir / "input" / positive_pdb.name
+    clean_positive_pdb = output_dir / "input" / "positive" / positive_pdb.name
     save_structure(clean_positive_pdb, clean_positive_structure)
 
     # clean the negative input structures
