@@ -2,7 +2,6 @@
 Functions to assist in uring ProteinMPNN.
 """
 
-
 from pathlib import Path
 import itertools
 from typing import NamedTuple
@@ -104,18 +103,22 @@ def rekey_proteinmpnn_dict(dict_path: Path) -> None:
         writer.write(new_dict)
 
 
-def make_shell_script(config: dict) -> str:
+def make_shell_script(config: dict, pdb: Path | None = None) -> str:
     """
     Generate a shell script to run the remaining ProteinMPNN jobs needed.
     """
-    mpnn_folder = Path(config["directory"]) / "ProteinMPNN"
-    mpnn_folder.mkdir(exist_ok=True)
+    if pdb is None:
+        mpnn_folder = get_proteinmpnn_folder(config)
+        pdb = config["input_pdb"]
+        fixed = config["fixed_dict"]
+    else:
+        mpnn_folder = get_proteinmpnn_folder(config) / f"{pdb.stem}"
+        fixed = None  # fixed positions not yet supported for negative design
 
-    pdb = config["input_pdb"]
     tied = config["symmetry_dict"]
-    fixed = config["fixed_dict"]
-    designs = get_num_to_design(config)
+    mpnn_folder.mkdir(exist_ok=True, parents=True)
 
+    designs = get_num_to_design(config)
     if designs <= 0:
         raise ValueError("No designs left to do")
 
@@ -157,12 +160,16 @@ def run_proteinmpnn(shell_script: str) -> None:
     )
 
 
-def rename_existing_results(config: dict) -> None:
+def rename_existing_results(config: dict, pdb: str | None = None) -> None:
     """
     Rename existing results files.
     """
     mpnn_folder = get_proteinmpnn_folder(config)
-    seqs_folder = mpnn_folder / "seqs"
+    if pdb is None:
+        seqs_folder = mpnn_folder / "seqs"
+    else:
+        seqs_folder = mpnn_folder / f"{pdb.stem}" / "seqs"
+
     recent_results_path = seqs_folder / "input.fa"
     if recent_results_path.is_file():
         result_count = len(list(seqs_folder.glob("*.fa")))
@@ -170,13 +177,13 @@ def rename_existing_results(config: dict) -> None:
         shutil.move(recent_results_path, new_results_path)
 
 
-def get_num_to_design(config: str) -> int:
+def get_num_to_design(config: str, pdb: str | None = None) -> int:
     """
     Determine how many designs still need to be made.
     """
     num_to_design = config["num_mpnn"]
 
-    designed_seqs = get_all_sequences(config)
+    designed_seqs = get_all_sequences(config, pdb)
     num_wt_seqs = len(list((get_proteinmpnn_folder(config) / "seqs").glob("*.fa")))
 
     return num_to_design - (len(designed_seqs) - num_wt_seqs)
@@ -196,12 +203,16 @@ def get_sequences(fasta: Path) -> list[MPNNSeq]:
     return designs
 
 
-def get_all_sequences(config: dict) -> list[MPNNSeq]:
+def get_all_sequences(config: dict, pdb: str | None = None) -> list[MPNNSeq]:
     """
     Get all designed sequences.
     """
+    if pdb is None:
+        mpnn_folder = get_proteinmpnn_folder(config)
+    else:
+        mpnn_folder = get_proteinmpnn_folder(config) / f"{pdb.stem}"
+
     seqs = []
-    mpnn_folder = get_proteinmpnn_folder(config)
     for seq_file in (mpnn_folder / "seqs").glob("*.fa"):
         seqs.extend(get_sequences(seq_file))
 

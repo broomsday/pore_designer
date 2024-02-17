@@ -141,17 +141,45 @@ def design_pore_negative(
     with open(config_path, mode="r", encoding="utf-8") as config_file:
         config = json.load(config_file)
 
-    # TODO: run ProteinMPNN on positive and negative
+    # run ProteinMPNN on positive
+    positive_pdb = Path(config["positive_pdb"])
+    symmetry_dict = proteinmpnn.make_symmetry_dict(positive_pdb)
+    symmetry_path = Path(positive_pdb).with_name(f"{positive_pdb.stem}.symm.jsonl")
+    proteinmpnn.save_symmetry_dict(symmetry_dict, symmetry_path)
+    config["symmetry_dict"] = symmetry_path
 
-    # TODO: produce positive->negative distance metrics
+    if proteinmpnn.get_num_to_design(config, positive_pdb) > 0:
+        proteinmpnn.rename_existing_results(config, positive_pdb)
+        proteinmpnn_script = proteinmpnn.make_shell_script(config, positive_pdb)
+        proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
-    # TODO: choose best designs based on metrics
+    # run ProteinMPNN on negatives
+    for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
+        symmetry_dict = proteinmpnn.make_symmetry_dict(negative_pdb)
+        symmetry_path = Path(negative_pdb).with_name(f"{negative_pdb.stem}.symm.jsonl")
+        proteinmpnn.save_symmetry_dict(symmetry_dict, symmetry_path)
+        config["symmetry_dict"] = symmetry_path
 
-    # TODO: run AF2
-
-    # TODO: report best designs
+        if proteinmpnn.get_num_to_design(config, negative_pdb) > 0:
+            proteinmpnn.rename_existing_results(config, negative_pdb)
+            proteinmpnn_script = proteinmpnn.make_shell_script(config, negative_pdb)
+            proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
     print(config)
+
+    # TODO: summarize positive and negative into distributions
+
+    # TODO: compute difference distributions for positive to each negative
+
+    # TODO: score each positive sequence by similarity to each difference distribution
+
+    # TODO: compute the overall similarity and min-similarity metric
+
+    # TODO: choose best designs based on metrics (half by highest overall similarity, half by higher min similarity)
+
+    # TODO: run AF2 as usual on WT and Oligomers for the sequences selected above
+
+    # TODO: report best designs
 
 
 def metric_test_to_select_seq(
