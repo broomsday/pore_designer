@@ -8,8 +8,9 @@ import json
 
 import typer
 import pandas as pd
+import logomaker
 
-from designer import proteinmpnn, alphafold, paths, plotting
+from designer import proteinmpnn, alphafold, sequence, paths, plotting
 
 
 def design_pore_positive(
@@ -165,13 +166,52 @@ def design_pore_negative(
             proteinmpnn_script = proteinmpnn.make_shell_script(config, negative_pdb)
             proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
-    print(config)
+    # summarize positive and negative into distributions and save sequence logos of each
+    design_summary_dir = proteinmpnn.get_proteinmpnn_folder(config) / "design"
+    design_summary_dir.mkdir(exist_ok=True)
 
-    # TODO: summarize positive and negative into distributions
+    distribution_path = design_summary_dir / f"{positive_pdb.stem}.json"
+    if not distribution_path.is_file():
+        positive_sequences = [
+            design.sequence[0]
+            for design in proteinmpnn.get_all_sequences(config, positive_pdb)
+        ]
+        logo_df = logomaker.alignment_to_matrix(positive_sequences)
+        logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
+        logo.fig.savefig(design_summary_dir / f"{positive_pdb.stem}.png")
+        distribution = sequence.make_consensus_frequency(positive_sequences)
+        sequence.save_distribution(distribution, distribution_path)
+    else:
+        distribution = sequence.load_distribution(distribution_path)
+
+    negative_distributions = []
+    for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
+        distribution_path = design_summary_dir / f"{negative_pdb.stem}.json"
+        if not distribution_path.is_file():
+            negative_sequences = [
+                design.sequence[0]
+                for design in proteinmpnn.get_all_sequences(config, negative_pdb)
+            ]
+            logo_df = logomaker.alignment_to_matrix(negative_sequences)
+            logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
+            logo.fig.savefig(design_summary_dir / f"{negative_pdb.stem}.png")
+            distribution = sequence.make_consensus_frequency(negative_sequences)
+            sequence.save_distribution(distribution, distribution_path)
+        else:
+            distribution = sequence.load_distribution(distribution_path)
+        negative_distributions.append(distribution)
 
     # TODO: compute difference distributions for positive to each negative
+    difference_summary_dir = proteinmpnn.get_proteinmpnn_folder(config) / "difference"
+    difference_summary_dir.mkdir(exist_ok=True)
+
+    difference_distributions = (
+        []
+    )  # TODO: save these, whole summary should check for whatever file will hold these
 
     # TODO: score each positive sequence by similarity to each difference distribution
+
+    print(config)
 
     # TODO: compute the overall similarity and min-similarity metric
 

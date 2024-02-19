@@ -546,6 +546,22 @@ files = [
 ]
 
 [[package]]
+name = "logomaker"
+version = "0.8"
+description = "Package for making Sequence Logos"
+optional = false
+python-versions = "*"
+files = [
+    {file = "logomaker-0.8-py2.py3-none-any.whl", hash = "sha256:6766a0d83de4990ea859366a661ba72c580a7b73ac3c8b526204a0be7d65a50d"},
+    {file = "logomaker-0.8.tar.gz", hash = "sha256:d8c7501a7d6d7961cd68e5a44e939000ebf1b0c4197a0c9198351e1d681d3f6d"},
+]
+
+[package.dependencies]
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+
+[[package]]
 name = "matplotlib"
 version = "3.8.0"
 description = "Python plotting package"
@@ -1071,4 +1087,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "28ddc60775c0878d56be45a1cf40461875e0b9fdb18692ad545a3b8fa0e0e210"
+content-hash = "0b9f4541402eae9e7ba266d8e96f24cb582bf6162734bf9394f397700e318063"

@@ -2,6 +2,9 @@
 Functions for working with and computing differences between sequences.
 """
 
+from pathlib import Path
+import json
+
 import numpy as np
 
 from designer.constants import BLOSUM_MATRIX, CANONICAL_AMINO_ACIDS
@@ -93,3 +96,42 @@ def compute_identity(reference: str, query: str) -> float:
     return np.mean(
         [1 if reference[i] == query_aa else 0 for i, query_aa in enumerate(query)]
     )
+
+
+def save_distribution(
+    distribution: dict[int, dict[str, float]], out_path: Path
+) -> None:
+    """
+    Save a sequence distribution (logo or matrix) as a json file.
+    """
+    with open(out_path, mode="w", encoding="utf8") as out_file:
+        json.dump(distribution, out_file)
+
+
+def load_distribution(in_path: Path) -> dict[int, dict[str, float]]:
+    """
+    Load a sequence distribution (logo or matrix) from a json file.
+    """
+    with open(in_path, mode="r", encoding="utf8") as in_file:
+        distribution = json.read(in_file)
+
+    return distribution
+
+
+def compute_difference_distribution(
+    positive_distribution: dict[int, dict[str, float]],
+    negative_distribution: dict[int, dict[str, float]],
+) -> dict[int, dict[str, float]]:
+    """
+    Given two distributions compute the difference.
+
+    If `no_negative`, negative results are set to a floor of 0.
+    """
+
+
+def sample_sequences_from_distribution(
+    distribution: dict[int, dict[str, float]], num_samples: int = 1000
+) -> list[str]:
+    """
+    Given a distribution, randomly sample sequences from it.
+    """
