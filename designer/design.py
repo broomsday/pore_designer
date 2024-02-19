@@ -179,10 +179,10 @@ def design_pore_negative(
         logo_df = logomaker.alignment_to_matrix(positive_sequences)
         logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
         logo.fig.savefig(design_summary_dir / f"{positive_pdb.stem}.png")
-        distribution = sequence.make_consensus_frequency(positive_sequences)
-        sequence.save_distribution(distribution, distribution_path)
+        positive_distribution = sequence.make_consensus_frequency(positive_sequences)
+        sequence.save_distribution(positive_distribution, distribution_path)
     else:
-        distribution = sequence.load_distribution(distribution_path)
+        positive_distribution = sequence.load_distribution(distribution_path)
 
     negative_distributions = []
     for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
@@ -195,19 +195,37 @@ def design_pore_negative(
             logo_df = logomaker.alignment_to_matrix(negative_sequences)
             logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
             logo.fig.savefig(design_summary_dir / f"{negative_pdb.stem}.png")
-            distribution = sequence.make_consensus_frequency(negative_sequences)
-            sequence.save_distribution(distribution, distribution_path)
+            negative_distribution = sequence.make_consensus_frequency(
+                negative_sequences
+            )
+            sequence.save_distribution(negative_distribution, distribution_path)
         else:
-            distribution = sequence.load_distribution(distribution_path)
-        negative_distributions.append(distribution)
+            negative_distribution = sequence.load_distribution(distribution_path)
+        negative_distributions.append(negative_distribution)
 
-    # TODO: compute difference distributions for positive to each negative
+    # compute difference distributions for positive to each negative
     difference_summary_dir = proteinmpnn.get_proteinmpnn_folder(config) / "difference"
     difference_summary_dir.mkdir(exist_ok=True)
 
-    difference_distributions = (
-        []
-    )  # TODO: save these, whole summary should check for whatever file will hold these
+    difference_distributions = []
+    for negative_pdb, negative_distribution in zip(
+        Path(config["negative_pdbs"]).glob("*.pdb"), negative_distributions
+    ):
+        distribution_path = difference_summary_dir / f"{negative_pdb.stem}.json"
+        if not distribution_path.is_file():
+            difference_distribution = sequence.compute_difference_distribution(
+                positive_distribution, negative_distribution
+            )
+            difference_sequences = sequence.make_exact_sequence_list_from_distribution(
+                difference_distribution
+            )
+            logo_df = logomaker.alignment_to_matrix(difference_sequences)
+            logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
+            logo.fig.savefig(difference_summary_dir / f"{negative_pdb.stem}.png")
+            difference_distributions.append(difference_distribution)
+        else:
+            difference_distribution = sequence.load_distribution(distribution_path)
+        difference_distributions.append(difference_distribution)
 
     # TODO: score each positive sequence by similarity to each difference distribution
 
@@ -216,6 +234,8 @@ def design_pore_negative(
     # TODO: compute the overall similarity and min-similarity metric
 
     # TODO: choose best designs based on metrics (half by highest overall similarity, half by higher min similarity)
+
+    # TODO: randomly sample an equal number of sequences from the difference distribution of the +1 oligomer
 
     # TODO: run AF2 as usual on WT and Oligomers for the sequences selected above
 

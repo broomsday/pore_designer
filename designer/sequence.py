@@ -113,7 +113,7 @@ def load_distribution(in_path: Path) -> dict[int, dict[str, float]]:
     Load a sequence distribution (logo or matrix) from a json file.
     """
     with open(in_path, mode="r", encoding="utf8") as in_file:
-        distribution = json.read(in_file)
+        distribution = json.load(in_file)
 
     return distribution
 
@@ -121,12 +121,139 @@ def load_distribution(in_path: Path) -> dict[int, dict[str, float]]:
 def compute_difference_distribution(
     positive_distribution: dict[int, dict[str, float]],
     negative_distribution: dict[int, dict[str, float]],
+    zero_floor: bool = True,
 ) -> dict[int, dict[str, float]]:
     """
     Given two distributions compute the difference.
 
-    If `no_negative`, negative results are set to a floor of 0.
+    If `zero_floor`, negative frequencies are set to a floor of 0.
     """
+    assert positive_distribution.keys() == negative_distribution.keys()
+
+    difference_distribution = {}
+    for position in positive_distribution:
+        # if the two positions are equal don't bother computing a difference
+        if positive_distribution[position] == negative_distribution[position]:
+            difference_distribution[position] = positive_distribution[position]
+            continue
+
+        # compute the difference
+        if zero_floor:
+            difference = {
+                amino_acid: (
+                    max(
+                        positive_distribution[position][amino_acid]
+                        - negative_distribution[position][amino_acid],
+                        0,
+                    )
+                )
+                for amino_acid in positive_distribution[position]
+            }
+        else:
+            difference = {
+                amino_acid: (
+                    positive_distribution[position][amino_acid]
+                    - negative_distribution[position][amino_acid]
+                )
+                for amino_acid in positive_distribution[position]
+            }
+
+        # normalize after computation
+        frequency_sum = sum(difference.values())
+        difference = {
+            amino_acid: frequency / frequency_sum
+            for amino_acid, frequency in difference.items()
+        }
+
+        # add to the final distribution
+        difference_distribution[position] = difference
+
+    return difference_distribution
+
+
+def normalize_to_integer_sum(
+    values: list[float | int], integer_sum: int = 100
+) -> list[int]:
+    """
+    Take a list of non-negative numbers and normalize to have a given integer sum, such that
+    all values are themselves non-negative integers
+    """
+    # Step 1: Normalize to sum of 100 in float
+    total_sum = np.sum(values)
+    normalized_floats = [(x / total_sum) * integer_sum for x in values]
+
+    # Step 2: Round to nearest integer
+    rounded_ints = [round(x) for x in normalized_floats]
+
+    # Step 3: Adjust the sum to exactly 100
+    adjustment = integer_sum - sum(rounded_ints)
+
+    # Sort items by the decimal part of their original normalized values, which were lost during rounding
+    # This helps in deciding which numbers to adjust
+    decimals = [x - int(x) for x in normalized_floats]
+    sorted_indices = sorted(
+        range(len(values)),
+        key=lambda i: decimals[i],
+        reverse=True if adjustment > 0 else False,
+    )
+
+    # Adjust the rounded integers
+    adjustment_count = 0
+    loop_count = 0
+    while adjustment_count < abs(adjustment):
+        loop_count += 1
+        # If adjustment is positive, increment; if negative, decrement unless that would make it negative
+        index_to_adjust = sorted_indices[loop_count % len(values)]
+        if adjustment > 0:
+            rounded_ints[index_to_adjust] += 1
+            adjustment_count += 1
+        else:
+            if rounded_ints[index_to_adjust] != 0:
+                rounded_ints[index_to_adjust] -= 1
+                adjustment_count += 1
+
+        if loop_count > 100:
+            raise ValueError
+
+    return rounded_ints
+
+
+def make_exact_sequence_list_from_distribution(
+    distribution: dict[int, dict[str, float]]
+) -> list[str]:
+    """
+    Round the amino acid distribution at each position to 1% intervals.
+
+    Then produce a list of 100 sequences that perfectly fit the above distribution.
+    """
+    # normalize the distribution to a sum of 100 at each position with integer frequencies only
+    for position in distribution:
+        new_frequencies = normalize_to_integer_sum(
+            list(distribution[position].values())
+        )
+        distribution[position] = {
+            amino_acid: new_frequencies[i]
+            for i, amino_acid in enumerate(distribution[position])
+        }
+
+    # build the list of sequences one position at a time
+    sequences = ["" for _ in range(100)]
+    for position in distribution:
+        assert np.sum(list(distribution[position].values())) == 100
+
+        position_sum = 0
+        added_positions = 0
+        for amino_acid, count in distribution[position].items():
+            if count == 0:
+                continue
+            for i in range(count):
+                sequences[i + position_sum] += amino_acid
+                added_positions += 1
+                if added_positions > 100:
+                    print(sequences)
+            position_sum += count
+
+    return sequences
 
 
 def sample_sequences_from_distribution(
@@ -135,3 +262,6 @@ def sample_sequences_from_distribution(
     """
     Given a distribution, randomly sample sequences from it.
     """
+    # TODO: go per position and use random.choices with weights
+    print(distribution)
+    raise NotImplementedError
