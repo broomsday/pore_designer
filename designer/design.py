@@ -8,6 +8,7 @@ import json
 
 import typer
 import pandas as pd
+import numpy as np
 import logomaker
 
 from designer import proteinmpnn, alphafold, sequence, paths, plotting
@@ -223,15 +224,40 @@ def design_pore_negative(
             logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
             logo.fig.savefig(difference_summary_dir / f"{negative_pdb.stem}.png")
             difference_distributions.append(difference_distribution)
+            sequence.save_distribution(difference_distribution, distribution_path)
         else:
             difference_distribution = sequence.load_distribution(distribution_path)
         difference_distributions.append(difference_distribution)
 
-    # TODO: score each positive sequence by similarity to each difference distribution
+    # score each positive sequence by similarity to each difference distribution
+    positives_df_path = Path(config["directory"]) / "scored_positives.csv"
+    if not positives_df_path.is_file():
+        positives = proteinmpnn.get_all_sequences(config, positive_pdb)
+        positives_df = pd.DataFrame().from_dict(
+            {"sequence": [design.sequence[0] for design in positives]}
+        )
+        for negative_pdb, difference_distribution in zip(
+            Path(config["negative_pdbs"]).glob("*.pdb"), difference_distributions
+        ):
+            positives_df[negative_pdb.stem] = positives_df["sequence"].apply(
+                sequence.compute_blosum_similarity_by_frequency,
+                args=[difference_distribution, 100],
+            )
 
+        positives_df["mean_similarity"] = positives_df.apply(
+            lambda row: np.mean([value for value in row if isinstance(value, float)]),
+            axis=1,
+        )
+        positives_df["max_similarity"] = positives_df.apply(
+            lambda row: max([value for value in row if isinstance(value, float)]),
+            axis=1,
+        )
+        positives_df.to_csv(positives_df_path)
+    else:
+        positives_df = pd.read_csv(positives_df_path)
+
+    print(positives_df)
     print(config)
-
-    # TODO: compute the overall similarity and min-similarity metric
 
     # TODO: choose best designs based on metrics (half by highest overall similarity, half by higher min similarity)
 

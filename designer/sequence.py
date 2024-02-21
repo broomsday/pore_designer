@@ -24,18 +24,17 @@ def compute_blosum_similarity(seq_one: str, seq_two: str) -> float:
 
 
 def compute_blosum_similarity_by_frequency(
-    sequence: str, frequency: dict[int, dict[str, float]]
+    sequence: str, frequency: dict[int, dict[str, float]], frequency_scaler: float = 1
 ) -> float:
     """
-    Return the BLOSUM similarity weighted by the amino acid frequencies of the consensus.
-
-    NOTE: in theory this should only be ~20x slower than `compute_blosum_similarity` but it is even slower...
+    Return the BLOSUM similarity to a weighted frequency (e.g. a consensus)
     """
     similarity = 0.0
     for i, aa in enumerate(sequence):
         similarity += np.sum(
             [
-                compute_blosum_similarity(aa, freq_aa) * frequency[i][freq_aa]
+                compute_blosum_similarity(aa, freq_aa)
+                * (frequency[i][freq_aa] / frequency_scaler)
                 for freq_aa in frequency[i]
             ]
         )
@@ -114,6 +113,11 @@ def load_distribution(in_path: Path) -> dict[int, dict[str, float]]:
     """
     with open(in_path, mode="r", encoding="utf8") as in_file:
         distribution = json.load(in_file)
+
+    # JSON serializes with keys as strings not ints, so convert back
+    distribution = {
+        int(position): frequencies for position, frequencies in distribution.items()
+    }
 
     return distribution
 
