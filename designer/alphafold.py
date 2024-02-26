@@ -202,8 +202,8 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
         )
 
         # pull out plddts
-        top_plddt = file_utils.get_average_plddt(result_dir, top_only=True)
-        mean_plddt = file_utils.get_average_plddt(result_dir, top_only=False)
+        top_plddt = file_utils.get_average_metric(result_dir, top_only=True)
+        mean_plddt = file_utils.get_average_metric(result_dir, top_only=False)
 
         # compute RMSD
         input_pdb = paths.get_input_pdb_path(config)
@@ -272,8 +272,8 @@ def compile_alphafold_oligomer_results(
         oligomer = int(id_parts[-1])
 
         # pull out plddts
-        top_plddt = file_utils.get_average_plddt(result_dir, top_only=True)
-        mean_plddt = file_utils.get_average_plddt(result_dir, top_only=False)
+        top_plddt = file_utils.get_average_metric(result_dir, top_only=True)
+        mean_plddt = file_utils.get_average_metric(result_dir, top_only=False)
 
         oligomer_seqs["design_id"].append(design_id)
         oligomer_seqs["oligomer"].append(oligomer)

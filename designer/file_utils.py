@@ -76,16 +76,6 @@ def clean_af2_prediction_files(unzip_dir: Path) -> None:
         except FileNotFoundError:
             pass
 
-    # reduce .json files to just the pLDDT entries
-    # for scores_file in unzip_dir.glob(f"{file_stem}*.json"):
-    #    with open(scores_file, mode="r", encoding="utf-8") as fi:
-    #        scores = json.load(fi)
-    #        print(scores)
-    #    plddts = {"plddt": scores["plddt"]}
-
-    #    with open(scores_file, mode="w", encoding="utf-8") as fo:
-    #        json.dump(plddts, fo)
-
 
 def get_average_metric(
     results_dir: Path, metric: str = "plddt", top_only: bool = True
