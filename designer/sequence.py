@@ -4,6 +4,7 @@ Functions for working with and computing differences between sequences.
 
 from pathlib import Path
 import json
+import random
 
 import numpy as np
 
@@ -253,19 +254,35 @@ def make_exact_sequence_list_from_distribution(
             for i in range(count):
                 sequences[i + position_sum] += amino_acid
                 added_positions += 1
-                if added_positions > 100:
-                    print(sequences)
             position_sum += count
 
     return sequences
 
 
+def sample_amino_acid_by_weight(amino_acid_weights: dict[str, int | float]) -> str:
+    """
+    Given a dictionary of amino acids as keys and weights as values,
+    return a weighted random amino acid.
+    """
+    return random.choices(
+        list(amino_acid_weights.keys()), list(amino_acid_weights.values())
+    )[0]
+
+
 def sample_sequences_from_distribution(
-    distribution: dict[int, dict[str, float]], num_samples: int = 1000
+    distribution: dict[int, dict[str, float]], num_samples: int
 ) -> list[str]:
     """
     Given a distribution, randomly sample sequences from it.
     """
-    # TODO: go per position and use random.choices with weights
-    print(distribution)
-    raise NotImplementedError
+    sequences = [
+        "".join(
+            [
+                sample_amino_acid_by_weight(amino_acid_weights)
+                for _, amino_acid_weights in distribution.items()
+            ]
+        )
+        for _ in range(num_samples)
+    ]
+
+    return sequences
