@@ -42,7 +42,12 @@ def get_input_pdb_path(config: dict) -> Path:
     """
     Return the path to the input PDB used for design.
     """
-    return Path(config["directory"]) / "input" / "input.pdb"
+    if (Path(config["directory"]) / "input" / "input.pdb").is_file():
+        return Path(config["directory"]) / "input" / "input.pdb"
+    elif Path(config["positive_pdb"]).is_file():
+        return Path(config["positive_pdb"])
+
+    raise FileNotFoundError("Cannot locate input PDB file")
 
 
 def get_proteinmpnn_source_path() -> Path | None:

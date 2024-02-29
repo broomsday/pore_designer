@@ -252,6 +252,9 @@ def design_pore_negative(
         ]
     )
 
+    # save the selected sequences as though they had been made by ProteinMPNN so we can use them downstream
+    proteinmpnn.save_top_sequences(config, selected_sequences)
+
     # TODO: copy-pasted code from positive design here, may be flakey
     # setup AF2 input file
     completed_af2_ids = alphafold.get_completed_ids(config, "design")
