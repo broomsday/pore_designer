@@ -2,13 +2,19 @@
 Functions to parse and manipulate PDBs.
 """
 
-
 from pathlib import Path
 import itertools
 
 import numpy as np
 import biotite.structure as bts
 from biotite.structure.io import load_structure
+
+
+def load_pdb(pdb_file: Path) -> bts.AtomArray:
+    """
+    Load a PDB as a biotite AtomArray
+    """
+    return load_structure(pdb_file)
 
 
 def clean_pdb(pdb_file: Path) -> bts.AtomArray:

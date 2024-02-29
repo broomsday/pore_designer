@@ -47,7 +47,7 @@ def get_input_pdb_path(config: dict) -> Path:
 
 def get_proteinmpnn_source_path() -> Path | None:
     """
-    Use an environment variable to determine where the alphafold conda source is located.
+    Use an environment variable to determine where the ProteinMPNN is located.
     """
     try:
         return os.environ["PROTEINMPNN_ENV"]

@@ -60,7 +60,7 @@ def make_config_positive(
     ),
     fixed_dict: Path = typer.Option(
         default=None,
-        help="If using a monomer from 'monomerizer' optionally procide a fixed dict output",
+        help="If using a monomer from 'monomerizer' optionally provide a fixed dict output",
     ),
     overwrite: bool = typer.Option(default=False, help="Overwrite existing config"),
 ):

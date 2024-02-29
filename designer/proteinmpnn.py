@@ -177,7 +177,7 @@ def rename_existing_results(config: dict, pdb: str | None = None) -> None:
         shutil.move(recent_results_path, new_results_path)
 
 
-def get_num_to_design(config: str, pdb: str | None = None) -> int:
+def get_num_to_design(config: dict, pdb: str | None = None) -> int:
     """
     Determine how many designs still need to be made.
     """

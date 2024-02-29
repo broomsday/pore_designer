@@ -8,10 +8,8 @@ import json
 
 import typer
 import pandas as pd
-import numpy as np
-import logomaker
 
-from designer import proteinmpnn, alphafold, sequence, paths, plotting
+from designer import proteinmpnn, alphafold, sequence, paths, plotting, utils, pdb
 
 
 def design_pore_positive(
@@ -168,41 +166,19 @@ def design_pore_negative(
             proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
     # summarize positive and negative into distributions and save sequence logos of each
+    print("Summarizing distributions and scoring sequences")
     design_summary_dir = proteinmpnn.get_proteinmpnn_folder(config) / "design"
     design_summary_dir.mkdir(exist_ok=True)
 
-    distribution_path = design_summary_dir / f"{positive_pdb.stem}.json"
-    if not distribution_path.is_file():
-        positive_sequences = [
-            design.sequence[0]
-            for design in proteinmpnn.get_all_sequences(config, positive_pdb)
-        ]
-        logo_df = logomaker.alignment_to_matrix(positive_sequences)
-        logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
-        logo.fig.savefig(design_summary_dir / f"{positive_pdb.stem}.png")
-        positive_distribution = sequence.make_consensus_frequency(positive_sequences)
-        sequence.save_distribution(positive_distribution, distribution_path)
-    else:
-        positive_distribution = sequence.load_distribution(distribution_path)
+    positive_distribution = utils.make_sequence_distribution(
+        config, design_summary_dir, positive_pdb
+    )
 
     negative_distributions = []
     for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
-        distribution_path = design_summary_dir / f"{negative_pdb.stem}.json"
-        if not distribution_path.is_file():
-            negative_sequences = [
-                design.sequence[0]
-                for design in proteinmpnn.get_all_sequences(config, negative_pdb)
-            ]
-            logo_df = logomaker.alignment_to_matrix(negative_sequences)
-            logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
-            logo.fig.savefig(design_summary_dir / f"{negative_pdb.stem}.png")
-            negative_distribution = sequence.make_consensus_frequency(
-                negative_sequences
-            )
-            sequence.save_distribution(negative_distribution, distribution_path)
-        else:
-            negative_distribution = sequence.load_distribution(distribution_path)
-        negative_distributions.append(negative_distribution)
+        negative_distributions.append(
+            utils.make_sequence_distribution(config, design_summary_dir, negative_pdb)
+        )
 
     # compute difference distributions for positive to each negative
     difference_summary_dir = proteinmpnn.get_proteinmpnn_folder(config) / "difference"
@@ -212,86 +188,78 @@ def design_pore_negative(
     for negative_pdb, negative_distribution in zip(
         Path(config["negative_pdbs"]).glob("*.pdb"), negative_distributions
     ):
-        distribution_path = difference_summary_dir / f"{negative_pdb.stem}.json"
-        if not distribution_path.is_file():
-            difference_distribution = sequence.compute_difference_distribution(
-                positive_distribution, negative_distribution
+        difference_distributions.append(
+            utils.make_difference_distributions(
+                difference_summary_dir,
+                positive_distribution,
+                negative_distribution,
+                negative_pdb.stem,
             )
-            difference_sequences = sequence.make_exact_sequence_list_from_distribution(
-                difference_distribution
-            )
-            logo_df = logomaker.alignment_to_matrix(difference_sequences)
-            logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
-            logo.fig.savefig(difference_summary_dir / f"{negative_pdb.stem}.png")
-            difference_distributions.append(difference_distribution)
-            sequence.save_distribution(difference_distribution, distribution_path)
-        else:
-            difference_distribution = sequence.load_distribution(distribution_path)
-        difference_distributions.append(difference_distribution)
+        )
 
     # score each positive sequence by similarity to each difference distribution
-    positives_df_path = Path(config["directory"]) / "scored_positives.csv"
-    if not positives_df_path.is_file():
-        positives = proteinmpnn.get_all_sequences(config, positive_pdb)
-        positives_df = pd.DataFrame().from_dict(
-            {"sequence": [design.sequence[0] for design in positives]}
+    scores_df_path = Path(config["directory"]) / "scored_positives.csv"
+    if not scores_df_path.is_file():
+        positives_df = utils.score_for_negative_design(
+            config, difference_distributions, scores_df_path
         )
-        for negative_pdb, difference_distribution in zip(
-            Path(config["negative_pdbs"]).glob("*.pdb"), difference_distributions
-        ):
-            positives_df[negative_pdb.stem] = positives_df["sequence"].apply(
-                sequence.compute_blosum_similarity_by_frequency,
-                args=[difference_distribution, 100],
+    else:
+        positives_df = pd.read_csv(scores_df_path)
+
+    # choose the sequences to run AF2 on
+    print("Selecting sequences for AF2 testing")
+    num_sequences_per_type = utils.divide_into_parts(int(config["num_af2"]), 3)
+
+    # choose 1/3 of designs based on overall similarity
+    positives_df = positives_df.sort_values(by="mean_similarity")
+    selected_sequences = [
+        utils.make_minimal_select_seq(
+            i, positives_df.iloc[i].sequence, config["multimer"], "mean_similarity"
+        )
+        for i in range(num_sequences_per_type[0])
+    ]
+
+    # choose 1/3 of designs based on max similarity
+    positives_df = positives_df.sort_values(by="max_similarity")
+    selected_sequences.extend(
+        [
+            utils.make_minimal_select_seq(
+                i, positives_df.iloc[i].sequence, config["multimer"], "max_similarity"
+            )
+            for i in range(num_sequences_per_type[1])
+        ]
+    )
+
+    # randomly sample an equal number of sequences from the difference distribution of the +1 oligomer
+    for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
+        multimer_state = pdb.get_multimer_state(pdb.load_pdb(negative_pdb))
+        if multimer_state == int(config["multimer"]) + 1:
+            difference_distribution = sequence.load_distribution(
+                proteinmpnn.get_proteinmpnn_folder(config)
+                / "difference"
+                / f"{negative_pdb.stem}.json"
             )
 
-        positives_df["mean_similarity"] = positives_df.apply(
-            lambda row: np.mean([value for value in row if isinstance(value, float)]),
-            axis=1,
-        )
-        positives_df["max_similarity"] = positives_df.apply(
-            lambda row: max([value for value in row if isinstance(value, float)]),
-            axis=1,
-        )
-        positives_df.to_csv(positives_df_path)
-    else:
-        positives_df = pd.read_csv(positives_df_path)
+    difference_sequences = sequence.sample_sequences_from_distribution(
+        difference_distribution, num_sequences_per_type[2]
+    )
+    print(difference_sequences)
+    quit()
+    selected_sequences.extend(
+        [
+            utils.make_minimal_select_seq(
+                i, difference_sequences[i], config["multimer"], "difference"
+            )
+            for i in range(num_sequences_per_type[1])
+        ]
+    )
 
-    print(positives_df)
-    print(config)
+    print(selected_sequences)
 
-    # TODO: choose best designs based on metrics (half by highest overall similarity, half by higher min similarity)
-
-    # TODO: randomly sample an equal number of sequences from the difference distribution of the +1 oligomer
-
+    # print("Running AF2")
     # TODO: run AF2 as usual on WT and Oligomers for the sequences selected above
 
-    # TODO: report best designs
-
-
-def metric_test_to_select_seq(
-    pdb: str, sequence: str, oligomer: int
-) -> alphafold.SelectSeq:
-    """
-    Generate a SelectSeq object from a pdb_id, sequence, and oligomer count.
-    """
-    return alphafold.SelectSeq(
-        id=pdb,
-        sequence=[sequence] * oligomer,
-        merged_sequence=":".join([sequence] * oligomer),
-        unique_chains=len(sequence.split(":")),
-        score=None,
-        recovery=None,
-        source="wt",
-        mutation=None,
-        frequency=None,
-        selection=None,
-        top_plddt=None,
-        mean_plddt=None,
-        top_rmsd=None,
-        mean_rmsd=None,
-        top_oligomer=None,
-        designed_oligomer_rank=None,
-    )
+    # TODO: report best designs as usual
 
 
 def produce_multimer_metrics(
@@ -308,7 +276,7 @@ def produce_multimer_metrics(
     # build the input data into SelectSeq objects
     input_data = pd.read_csv(config["input_csv"], index_col="pdb")
     metric_seqs = [
-        metric_test_to_select_seq(
+        utils.make_minimal_select_seq(
             input_data.index[idx],
             input_data.iloc[idx]["sequence"],
             input_data.iloc[idx]["oligomer"],
