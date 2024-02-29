@@ -22,6 +22,7 @@ def design_pore_positive(
     """
     with open(config_path, mode="r", encoding="utf-8") as config_file:
         config = json.load(config_file)
+    assert config["job_type"] == "positive"
 
     # setup the symmetry dict for proteinmpnn unless we already have it
     symmetry_path = Path(config["input_pdb"]).with_name("input.symm.jsonl")
@@ -140,6 +141,7 @@ def design_pore_negative(
     """
     with open(config_path, mode="r", encoding="utf-8") as config_file:
         config = json.load(config_file)
+    assert config["job_type"] == "negative"
 
     # run ProteinMPNN on positive
     positive_pdb = Path(config["positive_pdb"])
@@ -334,6 +336,37 @@ def design_pore_negative(
     alphafold.report_selected(config, oligomer_selected)
 
 
+def design_pore_mutations(
+    config_path: Path = typer.Argument(
+        ..., help="Pore Design config file for mutation design"
+    )
+):
+    """
+    Parse a `pore designer` config file and launch or continue the pore design job for mutation design.
+    """
+    with open(config_path, mode="r", encoding="utf-8") as config_file:
+        config = json.load(config_file)
+    assert config["job_type"] == "mutation"
+
+    # TODO: get the WT sequence
+    wt_pdb = Path(config["input_pdb"])
+    wt_sequence = pdb.get_sequence(pdb.load_pdb(wt_pdb))
+    print(wt_sequence)
+    quit()
+
+    # TODO: if we're using a mutation distribution load it now
+
+    # TODO: build the list of new sequences
+
+    # TODO: convert into a SelectSeq list for AF2 input
+
+    # TODO: run AF2 on the mutations (e.g. designs)
+
+    # TODO: run AF2 oligomer test
+
+    # TODO: produce final report
+
+
 def produce_multimer_metrics(
     config_path: Path = typer.Argument(
         ..., help="Pore Design config file for metric production"
@@ -344,6 +377,7 @@ def produce_multimer_metrics(
     """
     with open(config_path, mode="r", encoding="utf-8") as config_file:
         config = json.load(config_file)
+    assert config["job_type"] == "metric"
 
     # build the input data into SelectSeq objects
     input_data = pd.read_csv(config["input_csv"], index_col="pdb")
