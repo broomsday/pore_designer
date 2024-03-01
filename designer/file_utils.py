@@ -85,7 +85,6 @@ def get_average_metric(
 
     Otherwise return the average `metric` across all 5 models.
     """
-    print(results_dir)
     try:
         if top_only:
             result_fp = list(results_dir.glob("*scores_rank_001*.json"))[0]

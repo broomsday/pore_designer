@@ -270,7 +270,7 @@ def compile_alphafold_oligomer_results(
 
         # parse the original design id and the oligomer number
         id_parts = sequence_id.split("_")
-        design_id = "_".join(id_parts[:2])
+        design_id = "_".join(id_parts[:-1])
         oligomer = int(id_parts[-1])
 
         # pull out plddts
