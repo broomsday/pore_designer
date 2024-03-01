@@ -292,7 +292,23 @@ def sample_sequences_from_distribution(
     return sequences
 
 
-def default_distribution_from_length(
+def default_distribution_from_length(length: int) -> dict[int, dict[str, float]]:
+    """
+    Return a uniform amino acid probability (excluding CYS) across `length` positions
+    """
+    amino_acids = [
+        amino_acid
+        for amino_acid in AMINO_ACID_THREE_TO_ONE.values()
+        if amino_acid != "C"
+    ]
+
+    return {
+        position: {amino_acid: (1 / len(amino_acids)) for amino_acid in amino_acids}
+        for position in range(length)
+    }
+
+
+def mutation_distribution_from_length(
     length: int, bias: str | None = None
 ) -> dict[int, dict[str, float]]:
     """
@@ -300,15 +316,43 @@ def default_distribution_from_length(
 
     By default use a uniform amino acid probability, otherwise use a premade distribution at each position.
     """
-    if bias is not None:
-        raise NotImplementedError(
-            "Non uniform distributions not yet supported for default distributions."
-        )
+    if bias is None:
+        return default_distribution_from_length(length)
 
-    return {
-        position: {
-            amino_acid: (1 / len(AMINO_ACID_THREE_TO_ONE))
-            for amino_acid in AMINO_ACID_THREE_TO_ONE.values()
-        }
-        for position in range(length)
-    }
+    raise NotImplementedError(
+        "Non uniform distributions not yet supported for default distributions."
+    )
+
+
+def mutate_sequence_by_distribution(
+    sequence: str, distribution: dict[int, dict[str, float]], num_mutations: int
+) -> list[str]:
+    """
+    Given a per-position mutation distribution and a list of identical sequeces,
+    generate `num_mutations` mutations to the first sequence and replicate in the other sequences.
+    """
+    if num_mutations > len(sequence):
+        print(
+            f"Warning: {num_mutations} > sequence length, defaulting to {len(sequence)} mutations"
+        )
+        num_mutations = len(sequence)
+
+    # randomly choose the mutation positions and select mutant amino acids
+    #   can re-select the WT depending on the distribution and position chosen
+    positions = random.sample(list(range(len(sequence))), num_mutations)
+    mutations = [
+        random.choices(
+            list(distribution[position].keys()), list(distribution[position].values())
+        )[0]
+        for position in positions
+    ]
+
+    # apply the mutations
+    mutant_sequence = ""
+    last_position = -1
+    for position, mutation in zip(positions, mutations):
+        mutant_sequence += sequence[last_position + 1 : position] + mutation
+        last_position = position
+    mutant_sequence += sequence[last_position + 1 :]
+
+    return mutant_sequence

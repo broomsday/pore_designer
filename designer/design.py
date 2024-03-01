@@ -351,9 +351,9 @@ def design_pore_mutations(
     # get the WT sequence and check that it works for our use case
     wt_structure = pdb.load_pdb(Path(config["input_pdb"]))
     wt_sequence = pdb.get_by_chain_sequence(wt_structure)
-    chain_length = list(set([len(seq) for seq in wt_sequence]))
+    sequence_length = list(set([len(seq) for seq in wt_sequence]))
 
-    if len(chain_length) > 1:
+    if len(sequence_length) > 1:
         raise NotImplementedError(
             "Mutation design not implemented for hetero-oligomers"
         )
@@ -363,20 +363,27 @@ def design_pore_mutations(
         mutation_distribution = sequence.load_distribution(
             Path(config["mutation_distribution"])
         )
-        if len(mutation_distribution) != chain_length[0]:
+        if len(mutation_distribution) != sequence_length[0]:
             assert ValueError(
                 "Provided mutation distribution's length does not match the input"
             )
     else:
-        mutation_distribution = sequence.default_distribution_from_length(
-            chain_length[0], bias=None
+        mutation_distribution = sequence.mutation_distribution_from_length(
+            sequence_length[0], bias=None
         )
 
-    print(mutation_distribution)
-
-    # TODO: build the list of new sequences
-
-    # TODO: convert into a SelectSeq list for AF2 input
+    # build the list of new sequences by choosing mutations
+    selected_sequences = [
+        utils.make_minimal_select_seq(
+            i,
+            sequence.mutate_sequence_by_distribution(
+                wt_sequence[0], mutation_distribution, config["mutations_per_seq"]
+            ),
+            config["multimer"],
+            "mutation",
+        )
+        for i in range(config["num_af2"])
+    ]
 
     # TODO: run AF2 on the mutations (e.g. designs)
 
