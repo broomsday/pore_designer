@@ -348,13 +348,31 @@ def design_pore_mutations(
         config = json.load(config_file)
     assert config["job_type"] == "mutation"
 
-    # TODO: get the WT sequence
-    wt_pdb = Path(config["input_pdb"])
-    wt_sequence = pdb.get_sequence(pdb.load_pdb(wt_pdb))
-    print(wt_sequence)
-    quit()
+    # get the WT sequence and check that it works for our use case
+    wt_structure = pdb.load_pdb(Path(config["input_pdb"]))
+    wt_sequence = pdb.get_by_chain_sequence(wt_structure)
+    chain_length = list(set([len(seq) for seq in wt_sequence]))
 
-    # TODO: if we're using a mutation distribution load it now
+    if len(chain_length) > 1:
+        raise NotImplementedError(
+            "Mutation design not implemented for hetero-oligomers"
+        )
+
+    # if we're using a mutation distribution load it now otherwise generate a uniform distribution
+    if config["mutation_distribution"] is not None:
+        mutation_distribution = sequence.load_distribution(
+            Path(config["mutation_distribution"])
+        )
+        if len(mutation_distribution) != chain_length[0]:
+            assert ValueError(
+                "Provided mutation distribution's length does not match the input"
+            )
+    else:
+        mutation_distribution = sequence.default_distribution_from_length(
+            chain_length[0], bias=None
+        )
+
+    print(mutation_distribution)
 
     # TODO: build the list of new sequences
 

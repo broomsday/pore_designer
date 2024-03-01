@@ -32,7 +32,6 @@ AMINO_ACID_THREE_TO_ONE = {
     "ASP": "D",
     "GLU": "E",
     "PHE": "F",
-    "PHI": "F",
     "GLY": "G",
     "HIS": "H",
     "ILE": "I",

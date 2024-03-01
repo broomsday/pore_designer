@@ -8,7 +8,11 @@ import random
 
 import numpy as np
 
-from designer.constants import BLOSUM_MATRIX, CANONICAL_AMINO_ACIDS
+from designer.constants import (
+    BLOSUM_MATRIX,
+    CANONICAL_AMINO_ACIDS,
+    AMINO_ACID_THREE_TO_ONE,
+)
 
 
 def compute_blosum_similarity(seq_one: str, seq_two: str) -> float:
@@ -286,3 +290,25 @@ def sample_sequences_from_distribution(
     ]
 
     return sequences
+
+
+def default_distribution_from_length(
+    length: int, bias: str | None = None
+) -> dict[int, dict[str, float]]:
+    """
+    Given a length, build a per-posiition distribution of amino acids.
+
+    By default use a uniform amino acid probability, otherwise use a premade distribution at each position.
+    """
+    if bias is not None:
+        raise NotImplementedError(
+            "Non uniform distributions not yet supported for default distributions."
+        )
+
+    return {
+        position: {
+            amino_acid: (1 / len(AMINO_ACID_THREE_TO_ONE))
+            for amino_acid in AMINO_ACID_THREE_TO_ONE.values()
+        }
+        for position in range(length)
+    }

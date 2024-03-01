@@ -9,6 +9,8 @@ import numpy as np
 import biotite.structure as bts
 from biotite.structure.io import load_structure
 
+from designer.constants import AMINO_ACID_THREE_TO_ONE
+
 
 def load_pdb(pdb_file: Path) -> bts.AtomArray:
     """
@@ -29,12 +31,27 @@ def clean_pdb(pdb_file: Path) -> bts.AtomArray:
     return structure
 
 
-def get_sequence(structure: bts.AtomArray) -> list[str]:
+def get_sequence(structure: bts.AtomArray, mode: str = "triple") -> list[str]:
     """
-    Return the triple letter sequence of a structure.
+    Return the single or triple (default) letter sequence of a structure.
     """
     _, names = bts.get_residues(structure)
+
+    if mode == "triple":
+        return names
+
+    names = [AMINO_ACID_THREE_TO_ONE[name] for name in names]
     return names
+
+
+def get_by_chain_sequence(structure: bts.AtomArray) -> list[list[str]]:
+    """
+    Return a list of the single letter sequence for each chain
+    """
+    return [
+        "".join(get_sequence(chain, mode="single"))
+        for chain in bts.chain_iter(structure)
+    ]
 
 
 def get_multimer_state(structure: bts.AtomArray) -> int:
