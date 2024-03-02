@@ -183,6 +183,7 @@ def design_pore_negative(
         )
 
     # compute difference distributions for positive to each negative
+    # this is positive - negative, thus, frequent amino acids maximize positive over negative
     difference_summary_dir = proteinmpnn.get_proteinmpnn_folder(config) / "difference"
     difference_summary_dir.mkdir(exist_ok=True)
 
@@ -199,11 +200,11 @@ def design_pore_negative(
             )
         )
 
-    # score each positive sequence by similarity to each difference distribution
+    # score each positive sequence by similarity to each negative distribution
     scores_df_path = Path(config["directory"]) / "scored_positives.csv"
     if not scores_df_path.is_file():
         positives_df = utils.score_for_negative_design(
-            config, difference_distributions, scores_df_path
+            config, negative_distributions, scores_df_path
         )
     else:
         positives_df = pd.read_csv(scores_df_path)

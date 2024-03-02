@@ -86,7 +86,7 @@ def make_difference_distributions(
 
 
 def score_for_negative_design(
-    config: dict, difference_distributions: list, scores_df_path: Path
+    config: dict, negative_distributions: list, scores_df_path: Path
 ) -> pd.DataFrame:
     """
     Compute negative design similarity scores for all designs.
@@ -95,12 +95,12 @@ def score_for_negative_design(
     positives_df = pd.DataFrame().from_dict(
         {"sequence": [design.sequence[0] for design in positives]}
     )
-    for negative_pdb, difference_distribution in zip(
-        Path(config["negative_pdbs"]).glob("*.pdb"), difference_distributions
+    for negative_pdb, negative_distribution in zip(
+        Path(config["negative_pdbs"]).glob("*.pdb"), negative_distributions
     ):
         positives_df[negative_pdb.stem] = positives_df["sequence"].apply(
             sequence.compute_blosum_similarity_by_frequency,
-            args=[difference_distribution, 100],
+            args=[negative_distribution, 100],
         )
 
     positives_df["mean_similarity"] = positives_df.apply(
