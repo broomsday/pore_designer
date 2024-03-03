@@ -243,8 +243,6 @@ def select_top_sequences(config: dict) -> list[MPNNSeq]:
         [seq.merged_sequence for seq in seqs]
     )
     merged_consensus_sequence = sequence.make_consensus_sequence(frequencies)
-    # TODO: testing 1:1 correspondance between ProteinMPNN and AF2 results
-    # consensus_sequence = merged_consensus_sequence.split("_")
     consensus_sequence = merged_consensus_sequence.split(":")
 
     # add the consensus and frequency scores for all the sequences
@@ -406,8 +404,6 @@ def parse_design(annotation: str, sequence: str) -> MPNNSeq:
             unique_sequences.append(seq)
     unique_chains = len(set(sequences))
 
-    # TODO: can the separator just be : for convenience with AF2?
-    # merged_sequence = "_".join(sequences)
     merged_sequence = ":".join(sequences)
 
     score = [

@@ -24,7 +24,7 @@ CANONICAL_AMINO_ACIDS = [
     "V",
     "W",
     "Y",
-    "_",
+    ":",
 ]
 AMINO_ACID_THREE_TO_ONE = {
     "ALA": "A",

@@ -272,7 +272,7 @@ def make_config_mutation(
         "directory": str(output_dir.absolute()),
         "input_pdb": str(clean_input_pdb.absolute()),
         "mutations_per_seq": mutations_per_seq,
-        "mutation_distribution": mutation_distribution,
+        "mutation_distribution": str(mutation_distribution.absolute()),
         "num_af2": num_af2,
         "recycle_af2": recycle_af2,
         "top_plddt": top_plddt,

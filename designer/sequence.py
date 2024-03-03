@@ -346,6 +346,7 @@ def mutate_sequence_by_distribution(
         )[0]
         for position in positions
     ]
+    positions = sorted(positions)
 
     # apply the mutations
     mutant_sequence = ""

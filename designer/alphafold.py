@@ -211,8 +211,6 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
         mean_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=False)
 
         # cross-reference the sequence with proteinmpnn to get proteinmpnn metrics
-        # TODO: testing simpler 1:1 correspondance of proteinMPNN and AF2 chain seperators
-        # merged_sequence = alphafold_input.loc[sequence_id].sequence.replace(":", "_")
         merged_sequence = alphafold_input.loc[sequence_id].sequence
         sequence_index = proteinmpnn_merged_sequences.index(merged_sequence)
         proteinmpnn_seq = proteinmpnn_seqs[sequence_index]
