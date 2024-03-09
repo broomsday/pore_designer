@@ -15,10 +15,6 @@ from designer.proteinmpnn import MPNNSeq
 from designer import proteinmpnn, file_utils, pdb, paths, sequence, plotting
 
 
-LOWER_OLIGOMERS = 3
-HIGHER_OLIGOMERS = 4
-
-
 class SelectSeq(NamedTuple):
     id: str
     sequence: str
@@ -97,7 +93,7 @@ def make_af2_design_input(
 
 
 def make_af2_oligomer_input(
-    selected_seqs: list[SelectSeq], completed_ids: list[str]
+    config: dict, selected_seqs: list[SelectSeq], completed_ids: list[str]
 ) -> pd.DataFrame:
     """
     Save sequences in oligomer format for checking.
@@ -109,12 +105,12 @@ def make_af2_oligomer_input(
             selected_seq.sequence[i] for i in range(selected_seq.unique_chains)
         ]
 
-        for oligomer_offset in range(LOWER_OLIGOMERS):
+        for oligomer_offset in range((config["oligomer_lower_offset"])):
             oligomers = designed_oligomer - (oligomer_offset + 1)
             oligomer_dict["id"].append(f"{selected_seq.id}_{oligomers}")
             oligomer_dict["sequence"].append(":".join(subunit_seq * oligomers))
 
-        for oligomer_offset in range(HIGHER_OLIGOMERS):
+        for oligomer_offset in range(config["oligomer_higher_offset"]):
             oligomers = designed_oligomer + (oligomer_offset + 1)
             oligomer_dict["id"].append(f"{selected_seq.id}_{oligomers}")
             oligomer_dict["sequence"].append(":".join(subunit_seq * oligomers))

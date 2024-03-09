@@ -94,10 +94,11 @@ def design_pore_positive(
     # perform the alphafold oligomer check for multimers
     completed_af2_ids = alphafold.get_completed_ids(config, "oligomer")
     if len(completed_af2_ids) < (
-        len(design_selected) * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
+        len(design_selected)
+        * (config["oligomer_lower_offset"] + config["oligomer_higher_offset"])
     ):
         af2_input_df = alphafold.make_af2_oligomer_input(
-            design_selected, completed_af2_ids
+            config, design_selected, completed_af2_ids
         )
         af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
 
@@ -299,10 +300,11 @@ def design_pore_negative(
     # perform the alphafold oligomer check for multimers
     completed_af2_ids = alphafold.get_completed_ids(config, "oligomer")
     if len(completed_af2_ids) < (
-        len(design_selected) * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
+        len(design_selected)
+        * (config["oligomer_lower_offset"] + config["oligomer_higher_offset"])
     ):
         af2_input_df = alphafold.make_af2_oligomer_input(
-            design_selected, completed_af2_ids
+            config, design_selected, completed_af2_ids
         )
         af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
 
@@ -428,10 +430,11 @@ def design_pore_mutations(
     # perform the alphafold oligomer check for multimers
     completed_af2_ids = alphafold.get_completed_ids(config, "oligomer")
     if len(completed_af2_ids) < (
-        len(design_selected) * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
+        len(design_selected)
+        * (config["oligomer_lower_offset"] + config["oligomer_higher_offset"])
     ):
         af2_input_df = alphafold.make_af2_oligomer_input(
-            design_selected, completed_af2_ids
+            config, design_selected, completed_af2_ids
         )
         af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
 
@@ -503,9 +506,12 @@ def produce_multimer_metrics(
     # run AF2 on the expanded oligomer cases
     completed_af2_ids = alphafold.get_completed_ids(config, "oligomer")
     if len(completed_af2_ids) < (
-        len(metric_seqs) * (alphafold.LOWER_OLIGOMERS + alphafold.HIGHER_OLIGOMERS)
+        len(metric_seqs)
+        * (config["oligomer_lower_offset"] + config["oligomer_higher_offset"])
     ):
-        af2_input_df = alphafold.make_af2_oligomer_input(metric_seqs, completed_af2_ids)
+        af2_input_df = alphafold.make_af2_oligomer_input(
+            config, metric_seqs, completed_af2_ids
+        )
         af2_input_df.to_csv(paths.get_alphafold_input_path(config, "oligomer"))
 
         # run AF2 batch
