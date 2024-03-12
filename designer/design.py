@@ -211,53 +211,59 @@ def design_pore_negative(
         positives_df = pd.read_csv(scores_df_path)
 
     # choose the sequences to run AF2 on
-    print("Selecting sequences for AF2 testing")
-    num_sequences_per_type = utils.divide_into_parts(int(config["num_af2"]), 3)
+    if (Path(config["directory"]) / "top_mpnn_results.json").is_file():
+        selected_sequences = proteinmpnn.load_top_sequences(config)
+    else:
+        print("Selecting sequences for AF2 testing")
+        num_sequences_per_type = utils.divide_into_parts(int(config["num_af2"]), 3)
 
-    # choose 1/3 of designs based on overall similarity
-    positives_df = positives_df.sort_values(by="mean_similarity")
-    selected_sequences = [
-        utils.make_minimal_select_seq(
-            i, positives_df.iloc[i].sequence, config["multimer"], "mean_similarity"
+        # choose 1/3 of designs based on overall similarity
+        positives_df = positives_df.sort_values(by="mean_similarity")
+        selected_sequences = [
+            utils.make_minimal_select_seq(
+                i, positives_df.iloc[i].sequence, config["multimer"], "mean_similarity"
+            )
+            for i in range(num_sequences_per_type[0])
+        ]
+
+        # choose 1/3 of designs based on max similarity
+        positives_df = positives_df.sort_values(by="max_similarity")
+        selected_sequences.extend(
+            [
+                utils.make_minimal_select_seq(
+                    i,
+                    positives_df.iloc[i].sequence,
+                    config["multimer"],
+                    "max_similarity",
+                )
+                for i in range(num_sequences_per_type[1])
+            ]
         )
-        for i in range(num_sequences_per_type[0])
-    ]
 
-    # choose 1/3 of designs based on max similarity
-    positives_df = positives_df.sort_values(by="max_similarity")
-    selected_sequences.extend(
-        [
-            utils.make_minimal_select_seq(
-                i, positives_df.iloc[i].sequence, config["multimer"], "max_similarity"
-            )
-            for i in range(num_sequences_per_type[1])
-        ]
-    )
+        # randomly sample an equal number of sequences from the difference distribution of the +1 oligomer
+        for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
+            multimer_state = pdb.get_multimer_state(pdb.load_pdb(negative_pdb))
+            if multimer_state == int(config["multimer"]) + 1:
+                difference_distribution = sequence.load_distribution(
+                    proteinmpnn.get_proteinmpnn_folder(config)
+                    / "difference"
+                    / f"{negative_pdb.stem}.json"
+                )
 
-    # randomly sample an equal number of sequences from the difference distribution of the +1 oligomer
-    for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
-        multimer_state = pdb.get_multimer_state(pdb.load_pdb(negative_pdb))
-        if multimer_state == int(config["multimer"]) + 1:
-            difference_distribution = sequence.load_distribution(
-                proteinmpnn.get_proteinmpnn_folder(config)
-                / "difference"
-                / f"{negative_pdb.stem}.json"
-            )
+        difference_sequences = sequence.sample_sequences_from_distribution(
+            difference_distribution, num_sequences_per_type[2]
+        )
+        selected_sequences.extend(
+            [
+                utils.make_minimal_select_seq(
+                    i, difference_sequences[i], config["multimer"], "difference"
+                )
+                for i in range(num_sequences_per_type[1])
+            ]
+        )
 
-    difference_sequences = sequence.sample_sequences_from_distribution(
-        difference_distribution, num_sequences_per_type[2]
-    )
-    selected_sequences.extend(
-        [
-            utils.make_minimal_select_seq(
-                i, difference_sequences[i], config["multimer"], "difference"
-            )
-            for i in range(num_sequences_per_type[1])
-        ]
-    )
-
-    # save the selected sequences as though they had been made by ProteinMPNN so we can use them downstream
-    proteinmpnn.save_top_sequences(config, selected_sequences)
+        # save the selected sequences as though they had been made by ProteinMPNN so we can use them downstream
+        proteinmpnn.save_top_sequences(config, selected_sequences)
 
     # setup AF2 input file
     completed_af2_ids = alphafold.get_completed_ids(config, "design")
