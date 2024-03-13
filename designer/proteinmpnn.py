@@ -134,7 +134,8 @@ def make_shell_script(config: dict, pdb: Path | None = None) -> str:
     shell_script += f"--out_folder {mpnn_folder} "
     shell_script += f"--num_seq_per_target {designs} "
     shell_script += f"--sampling_temp {config['temperature_mpnn']} "
-    shell_script += "--use_soluble_model"
+    shell_script += "--use_soluble_model "
+    shell_script += "--omit_AAs C"
 
     return shell_script
 
