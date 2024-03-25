@@ -215,7 +215,12 @@ def design_pore_negative(
         selected_sequences = proteinmpnn.load_top_sequences(config)
     else:
         print("Selecting sequences for AF2 testing")
-        num_sequences_per_type = utils.divide_into_parts(int(config["num_af2"]), 3)
+        num_to_select_total = int(config["num_af2"])
+        num_to_select_difference = num_to_select_total * float(
+            config["fraction_difference_af2"]
+        )
+        num_to_select_similarity = num_to_select_total - num_to_select_difference
+        num_sequences_per_type = utils.divide_into_parts(num_to_select_similarity, 2)
 
         # choose 1/3 of designs based on overall similarity
         positives_df = positives_df.sort_values(by="mean_similarity")
@@ -243,7 +248,9 @@ def design_pore_negative(
         # randomly sample an equal number of sequences from the difference distribution of the +1 oligomer
         for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
             multimer_state = pdb.get_multimer_state(pdb.load_pdb(negative_pdb))
-            if multimer_state == int(config["multimer"]) + 1:
+            if multimer_state == int(config["multimer"]) + int(
+                config["difference_oligomer_offset"]
+            ):
                 difference_distribution = sequence.load_distribution(
                     proteinmpnn.get_proteinmpnn_folder(config)
                     / "difference"
@@ -251,14 +258,14 @@ def design_pore_negative(
                 )
 
         difference_sequences = sequence.sample_sequences_from_distribution(
-            difference_distribution, num_sequences_per_type[2]
+            difference_distribution, num_to_select_difference
         )
         selected_sequences.extend(
             [
                 utils.make_minimal_select_seq(
                     i, difference_sequences[i], config["multimer"], "difference"
                 )
-                for i in range(num_sequences_per_type[1])
+                for i in range(num_to_select_difference)
             ]
         )
 

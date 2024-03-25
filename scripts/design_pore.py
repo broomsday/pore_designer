@@ -123,6 +123,10 @@ def make_config_negative(
     negative_pdb_dir: Path = typer.Argument(
         ..., help="Directory of all negative PDBs."
     ),
+    difference_oligomer_offset: int = typer.Option(
+        default=1,
+        help="how many more or fewer oligomers should the negative design target have when doing difference design",
+    ),
     num_mpnn: int = typer.Option(
         default=10000, help="Number of ProteinMPNN designs to make"
     ),
@@ -131,6 +135,10 @@ def make_config_negative(
     ),
     num_af2: int = typer.Option(
         default=100, help="Number of design sequences to test by AlphaFold2"
+    ),
+    fraction_difference_af2: float = typer.Option(
+        default=1.0,
+        help="Fraction of designs to make using the preferred difference method",
     ),
     recycle_af2: int = typer.Option(default=3, help="Number of recycles to use in AF2"),
     top_plddt: float = typer.Option(
@@ -189,9 +197,11 @@ def make_config_negative(
         "directory": str(output_dir.absolute()),
         "positive_pdb": str(clean_positive_pdb.absolute()),
         "negative_pdbs": str(clean_negative_pdbs.absolute()),
+        "difference_oligomer_offset": difference_oligomer_offset,
         "num_mpnn": num_mpnn,
         "temperature_mpnn": temperature_mpnn,
         "num_af2": num_af2,
+        "fraction_difference_af2": fraction_difference_af2,
         "recycle_af2": recycle_af2,
         "top_plddt": top_plddt,
         "mean_plddt": mean_plddt,
