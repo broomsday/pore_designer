@@ -245,7 +245,7 @@ def design_pore_negative(
             ]
         )
 
-        # randomly sample an equal number of sequences from the difference distribution of the +1 oligomer
+        # randomly sample an equal number of sequences from the difference distribution of the negative oligomer
         for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
             multimer_state = pdb.get_multimer_state(pdb.load_pdb(negative_pdb))
             if multimer_state == int(config["multimer"]) + int(
