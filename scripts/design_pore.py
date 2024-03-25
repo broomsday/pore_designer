@@ -22,13 +22,13 @@ def make_config_positive(
     ),
     input_pdb: Path = typer.Argument(..., help="PDB to design into a pore."),
     num_mpnn: int = typer.Option(
-        default=10000, help="Number of ProteinMPNN designs to make"
+        default=100000, help="Number of ProteinMPNN designs to make"
     ),
     temperature_mpnn: float = typer.Option(
         default=0.1, help="MPNN sampling temperature."
     ),
     num_af2: int = typer.Option(
-        default=100, help="Number of design sequences to test by AlphaFold2"
+        default=200, help="Number of design sequences to test by AlphaFold2"
     ),
     recycle_af2: int = typer.Option(default=3, help="Number of recycles to use in AF2"),
     top_plddt: float = typer.Option(
@@ -47,11 +47,11 @@ def make_config_positive(
         help="Minimum oligomer check rank to be selected for oligomer designs",
     ),
     oligomer_lower_offset: int = typer.Option(
-        default=3,
+        default=2,
         help="How many fewer oligomers to test when performing the oligomer check",
     ),
     oligomer_higher_offset: int = typer.Option(
-        default=4,
+        default=3,
         help="How many more oligomers to test when performing the oligomer check",
     ),
     symmetry_dict: Path = typer.Option(
@@ -128,13 +128,13 @@ def make_config_negative(
         help="how many more or fewer oligomers should the negative design target have when doing difference design",
     ),
     num_mpnn: int = typer.Option(
-        default=10000, help="Number of ProteinMPNN designs to make"
+        default=100000, help="Number of ProteinMPNN designs to make"
     ),
     temperature_mpnn: float = typer.Option(
         default=0.1, help="MPNN sampling temperature."
     ),
     num_af2: int = typer.Option(
-        default=100, help="Number of design sequences to test by AlphaFold2"
+        default=200, help="Number of design sequences to test by AlphaFold2"
     ),
     fraction_difference_af2: float = typer.Option(
         default=1.0,
@@ -150,18 +150,18 @@ def make_config_negative(
     top_rmsd: float = typer.Option(default=1.0, help="Max RMSD for selection"),
     mean_rmsd: float = typer.Option(default=2.0, help="Max RMSD for selection"),
     select_identity: float = typer.Option(
-        default=0.9, help="Maximum identity between any two selected sequences"
+        default=0.95, help="Maximum identity between any two selected sequences"
     ),
     select_oligomer_rank: int = typer.Option(
         default=1,
         help="Minimum oligomer check rank to be selected for oligomer designs",
     ),
     oligomer_lower_offset: int = typer.Option(
-        default=3,
+        default=2,
         help="How many fewer oligomers to test when performing the oligomer check",
     ),
     oligomer_higher_offset: int = typer.Option(
-        default=4,
+        default=3,
         help="How many more oligomers to test when performing the oligomer check",
     ),
     overwrite: bool = typer.Option(default=False, help="Overwrite existing config"),
@@ -244,18 +244,18 @@ def make_config_mutation(
     top_rmsd: float = typer.Option(default=1.0, help="Max RMSD for selection"),
     mean_rmsd: float = typer.Option(default=2.0, help="Max RMSD for selection"),
     select_identity: float = typer.Option(
-        default=0.9, help="Maximum identity between any two selected sequences"
+        default=0.99, help="Maximum identity between any two selected sequences"
     ),
     select_oligomer_rank: int = typer.Option(
         default=1,
         help="Minimum oligomer check rank to be selected for oligomer designs",
     ),
     oligomer_lower_offset: int = typer.Option(
-        default=3,
+        default=2,
         help="How many fewer oligomers to test when performing the oligomer check",
     ),
     oligomer_higher_offset: int = typer.Option(
-        default=4,
+        default=3,
         help="How many more oligomers to test when performing the oligomer check",
     ),
     overwrite: bool = typer.Option(default=False, help="Overwrite existing config"),
