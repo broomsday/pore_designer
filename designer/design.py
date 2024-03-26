@@ -216,8 +216,8 @@ def design_pore_negative(
     else:
         print("Selecting sequences for AF2 testing")
         num_to_select_total = int(config["num_af2"])
-        num_to_select_difference = num_to_select_total * float(
-            config["fraction_difference_af2"]
+        num_to_select_difference = round(
+            num_to_select_total * float(config["fraction_difference_af2"])
         )
         num_to_select_similarity = num_to_select_total - num_to_select_difference
         num_sequences_per_type = utils.divide_into_parts(num_to_select_similarity, 2)
