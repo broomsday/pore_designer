@@ -488,6 +488,7 @@ def select_top(
     """
     Select the top AF2 sequences based on a set of criteria.
     """
+    # TODO: here need to add the hydrophobicity check
     # filter based on plddt and RMSD and oligomer
     filtered_seqs = [
         seq
