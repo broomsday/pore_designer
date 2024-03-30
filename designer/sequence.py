@@ -279,15 +279,16 @@ def sample_sequences_from_distribution(
     """
     Given a distribution, randomly sample sequences from it.
     """
-    sequences = [
-        "".join(
+    sequences = []
+    while len(sequences) < num_samples:
+        sequence = "".join(
             [
                 sample_amino_acid_by_weight(amino_acid_weights)
                 for _, amino_acid_weights in distribution.items()
             ]
         )
-        for _ in range(num_samples)
-    ]
+        if sequence not in sequences:
+            sequences.append(sequence)
 
     return sequences
 
