@@ -215,20 +215,14 @@ def design_pore_negative(
         selected_sequences = proteinmpnn.load_top_sequences(config)
     else:
         print("Selecting sequences for AF2 testing")
-        num_to_select_total = int(config["num_af2"])
-        num_to_select_difference = round(
-            num_to_select_total * float(config["fraction_difference_af2"])
-        )
-        num_to_select_similarity = num_to_select_total - num_to_select_difference
-        num_sequences_per_type = utils.divide_into_parts(num_to_select_similarity, 2)
 
-        # choose 1/3 of designs based on overall similarity
+        # choose designs based on overall similarity
         positives_df = positives_df.sort_values(by="mean_similarity")
         selected_sequences = [
             utils.make_minimal_select_seq(
                 i, positives_df.iloc[i].sequence, config["multimer"], "mean_similarity"
             )
-            for i in range(num_sequences_per_type[0])
+            for i in range(int(config["num_af2_mean_similarity"]))
         ]
 
         # choose 1/3 of designs based on max similarity
@@ -241,11 +235,11 @@ def design_pore_negative(
                     config["multimer"],
                     "max_similarity",
                 )
-                for i in range(num_sequences_per_type[1])
+                for i in range(int(config["num_af2_max_similarity"]))
             ]
         )
 
-        # randomly sample an equal number of sequences from the difference distribution of the negative oligomer
+        # randomly sample sequences from the difference distribution of the negative oligomer
         for negative_pdb in Path(config["negative_pdbs"]).glob("*.pdb"):
             multimer_state = pdb.get_multimer_state(pdb.load_pdb(negative_pdb))
             if multimer_state == int(config["multimer"]) + int(
@@ -257,15 +251,16 @@ def design_pore_negative(
                     / f"{negative_pdb.stem}.json"
                 )
 
+        num_difference = int(config["num_af2_difference"])
         difference_sequences = sequence.sample_sequences_from_distribution(
-            difference_distribution, num_to_select_difference
+            difference_distribution, num_difference
         )
         selected_sequences.extend(
             [
                 utils.make_minimal_select_seq(
                     i, difference_sequences[i], config["multimer"], "difference"
                 )
-                for i in range(num_to_select_difference)
+                for i in range(num_difference)
             ]
         )
 

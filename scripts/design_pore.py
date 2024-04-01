@@ -133,12 +133,17 @@ def make_config_negative(
     temperature_mpnn: float = typer.Option(
         default=0.1, help="MPNN sampling temperature."
     ),
-    num_af2: int = typer.Option(
-        default=200, help="Number of design sequences to test by AlphaFold2"
+    num_af2_mean_similarity: int = typer.Option(
+        default=0,
+        help="Number of mean-similary designed sequences to test by AlphaFold2",
     ),
-    fraction_difference_af2: float = typer.Option(
-        default=1.0,
-        help="Fraction of designs to make using the preferred difference method",
+    num_af2_max_similarity: int = typer.Option(
+        default=0,
+        help="Number of max-similarity designed sequences to test by AlphaFold2",
+    ),
+    num_af2_difference: int = typer.Option(
+        default=200,
+        help="Number of difference distribution sequences to test by AlphaFold2",
     ),
     recycle_af2: int = typer.Option(default=3, help="Number of recycles to use in AF2"),
     top_plddt: float = typer.Option(
@@ -200,8 +205,12 @@ def make_config_negative(
         "difference_oligomer_offset": difference_oligomer_offset,
         "num_mpnn": num_mpnn,
         "temperature_mpnn": temperature_mpnn,
-        "num_af2": num_af2,
-        "fraction_difference_af2": fraction_difference_af2,
+        "num_af2": num_af2_mean_similarity
+        + num_af2_max_similarity
+        + num_af2_difference,
+        "num_af2_mean_similarity": num_af2_mean_similarity,
+        "num_af2_max_similarity": num_af2_max_similarity,
+        "num_af2_difference": num_af2_difference,
         "recycle_af2": recycle_af2,
         "top_plddt": top_plddt,
         "mean_plddt": mean_plddt,
