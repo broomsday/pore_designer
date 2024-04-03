@@ -1,5 +1,5 @@
-# Install base utilities
-FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+# Install base image and update OS utilities
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 RUN apt-get update \
     && apt-get install -y build-essential \
@@ -11,44 +11,47 @@ RUN apt-get update \
     && apt-get install -y python3.10 \
     && apt-get install -y python3.10-dev \ 
     && apt-get install -y python3.10-distutils \
+    && apt-get install -y python3-pip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install miniconda
-ENV CONDA_DIR /opt/conda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/conda
-ENV PATH=$CONDA_DIR/bin:$PATH
-
-# setup AlphaFold
-WORKDIR /AlphaFold
-RUN wget https://raw.githubusercontent.com/YoshitakaMo/localcolabfold/main/install_colabbatch_linux.sh
-SHELL ["/bin/bash", "--login", "-c"]
-RUN bash install_colabbatch_linux.sh
-RUN conda install -y cuda -c nvidia/label/cuda-11.8.0
-
-# setup pore-designer
-WORKDIR /
-RUN git clone https://github.com/broomsday/pore_designer.git
-WORKDIR /pore_designer
-SHELL ["/bin/bash", "--login", "-c"]
-RUN pip install poetry
-#RUN poetry config virtualenvs.create false \   # this was causing issues with python 3.12 being used to install
-RUN poetry config virtualenvs.create true \
-    && poetry install 
+# setup environment variables
 ENV PROTEINMPNN="/ProteinMPNN"
 ENV PROTEINMPNN_ENV="/ProteinMPNN/proteinmpnn-conda"
 ENV ALPHAFOLD_ENV="/AlphaFold/localcolabfold/colabfold-conda"
-ENV CONDA_SOURCE="/opt/conda/etc/profile.d/conda.sh"
+ENV CONDA_SOURCE="/AlphaFold/localcolabfold/conda/etc/profile.d/conda.sh"
+# TODO: should just source the proteinmpnn and alphafold condas when needed
+# TODO: above requires change to the code in proteinmpnn.py and alphafold.py when building the launch scripts
+
+# pull in the installer utility scripts
+WORKDIR /
+RUN git clone https://github.com/broomsday/external_tools.git
+
+# setup AlphaFold
+WORKDIR /AlphaFold
+RUN git clone https://github.com/YoshitakaMo/localcolabfold.git ./
+SHELL ["/bin/bash", "--login", "-c"]
+RUN bash install_colabbatch_linux.sh
+RUN cp /external_tools/install/fix_alphafold.sh /AlphaFold/fix_alphafold.sh
+RUN bash fix_alphafold.sh
 
 # setup ProteinMPNN
-WORKDIR /
-RUN git clone https://github.com/dauparas/ProteinMPNN.git
-RUN cp /pore_designer/scripts/install_proteinmpnn.sh /ProteinMPNN/install_proteinmpnn.sh
 WORKDIR /ProteinMPNN
+RUN git clone https://github.com/dauparas/ProteinMPNN.git .
+RUN cp /external_tools/install/install_proteinmpnn.sh /ProteinMPNN/install_proteinmpnn.sh
 SHELL ["/bin/bash", "--login", "-c"]
 RUN bash install_proteinmpnn.sh
 
-# ready for design
+# setup pore-designer
+ARG CACHEBUST
+RUN echo "$CACHEBUST"
+WORKDIR /pore_designer
+RUN git clone https://github.com/broomsday/pore_designer.git .
+SHELL ["/bin/bash", "--login", "-c"]
+RUN pip install poetry
+RUN poetry config virtualenvs.create true \
+    && poetry install 
+
+# get ready for design
 WORKDIR /workspace
 ENTRYPOINT ["tail", "-f", "/dev/null"]
