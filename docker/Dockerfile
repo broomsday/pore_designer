@@ -15,14 +15,6 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# setup environment variables
-ENV PROTEINMPNN="/ProteinMPNN"
-ENV PROTEINMPNN_ENV="/ProteinMPNN/proteinmpnn-conda"
-ENV ALPHAFOLD_ENV="/AlphaFold/localcolabfold/colabfold-conda"
-ENV CONDA_SOURCE="/AlphaFold/localcolabfold/conda/etc/profile.d/conda.sh"
-# TODO: should just source the proteinmpnn and alphafold condas when needed
-# TODO: above requires change to the code in proteinmpnn.py and alphafold.py when building the launch scripts
-
 # pull in the installer utility scripts
 WORKDIR /
 RUN git clone https://github.com/broomsday/external_tools.git
@@ -42,9 +34,19 @@ RUN cp /external_tools/install/install_proteinmpnn.sh /ProteinMPNN/install_prote
 SHELL ["/bin/bash", "--login", "-c"]
 RUN bash install_proteinmpnn.sh
 
-# setup pore-designer
+# force redoing the pore-designer portion each build
 ARG CACHEBUST
 RUN echo "$CACHEBUST"
+
+# setup environment variables
+ENV PROTEINMPNN="/ProteinMPNN"
+ENV PROTEINMPNN_ENV="/ProteinMPNN/proteinmpnn-conda"
+ENV ALPHAFOLD_ENV="/AlphaFold/localcolabfold/colabfold-conda"
+ENV CONDA_SOURCE="/AlphaFold/localcolabfold/conda/etc/profile.d/conda.sh"
+# TODO: should just source the proteinmpnn and alphafold condas when needed
+# TODO: above requires change to the code in proteinmpnn.py and alphafold.py when building the launch scripts
+
+# setup pore-designer
 WORKDIR /pore_designer
 RUN git clone https://github.com/broomsday/pore_designer.git .
 SHELL ["/bin/bash", "--login", "-c"]
