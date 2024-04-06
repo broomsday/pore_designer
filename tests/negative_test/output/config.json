@@ -1,0 +1,23 @@
+{
+    "job_type": "negative",
+    "directory": "/home/broom/AlphaCarbon/code/pore_designer/tests/negative_test/output",
+    "positive_pdb": "/home/broom/AlphaCarbon/code/pore_designer/tests/negative_test/output/input/positive/4JPP_640_7mer.pdb",
+    "negative_pdbs": "/home/broom/AlphaCarbon/code/pore_designer/tests/negative_test/output/input/negative",
+    "difference_oligomer_offset": 1,
+    "num_mpnn": 100,
+    "temperature_mpnn": 0.1,
+    "num_af2": 2,
+    "num_af2_mean_similarity": 1,
+    "num_af2_max_similarity": 0,
+    "num_af2_difference": 1,
+    "recycle_af2": 3,
+    "top_plddt": 70.0,
+    "mean_plddt": 20.0,
+    "top_rmsd": 4.0,
+    "mean_rmsd": 40.0,
+    "select_identity": 0.95,
+    "select_oligomer_rank": 3,
+    "oligomer_lower_offset": 1,
+    "oligomer_higher_offset": 1,
+    "multimer": 7
+}
