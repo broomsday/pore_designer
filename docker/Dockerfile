@@ -21,12 +21,8 @@ RUN git clone https://github.com/broomsday/external_tools.git
 
 # setup AlphaFold
 WORKDIR /AlphaFold
-#RUN git clone https://github.com/YoshitakaMo/localcolabfold.git ./
 RUN cp /external_tools/install/install_alphafold* /AlphaFold/
 SHELL ["/bin/bash", "--login", "-c"]
-#RUN bash install_colabbatch_linux.sh
-#RUN cp /external_tools/install/fix_alphafold.sh /AlphaFold/fix_alphafold.sh
-#RUN bash fix_alphafold.sh
 RUN bash install_alphafold_step1.sh
 RUN bash install_alphafold_step2.sh
 RUN bash install_alphafold_step3.sh
