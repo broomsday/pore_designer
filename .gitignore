@@ -11,3 +11,4 @@ data/metric_test
 data/negative_test
 data/mutation_test
 data/positive_test
+tests/negative_test
