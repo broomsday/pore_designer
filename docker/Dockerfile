@@ -43,10 +43,9 @@ RUN echo "$CACHEBUST"
 # setup environment variables
 ENV PROTEINMPNN="/ProteinMPNN"
 ENV PROTEINMPNN_ENV="/ProteinMPNN/proteinmpnn-conda"
+ENV PROTEINMPNN_CONDA_SOURCE="/ProteinMPNN/conda/etc/profile.d/conda.sh"
 ENV ALPHAFOLD_ENV="/AlphaFold/localcolabfold/colabfold-conda"
-ENV CONDA_SOURCE="/AlphaFold/localcolabfold/conda/etc/profile.d/conda.sh"
-# TODO: should just source the proteinmpnn and alphafold condas when needed
-# TODO: above requires change to the code in proteinmpnn.py and alphafold.py when building the launch scripts
+ENV ALPHAFOLD_CONDA_SOURCE="/AlphaFold/localcolabfold/conda/etc/profile.d/conda.sh"
 
 # setup pore-designer
 WORKDIR /pore_designer

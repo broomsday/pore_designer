@@ -123,9 +123,9 @@ def make_shell_script(config: dict, pdb: Path | None = None) -> str:
         raise ValueError("No designs left to do")
 
     shell_script = "#!/bin/bash\n\n"
-    shell_script += f"source {paths.get_conda_source_path()}\n"
+    shell_script += f"source {paths.get_proteinmpnn_conda_source_path()}\n"
     shell_script += "conda deactivate\n"
-    shell_script += f"conda activate {paths.get_proteinmpnn_source_path()}\n"
+    shell_script += f"conda activate {paths.get_proteinmpnn_env_path()}\n"
     shell_script += f"python {paths.get_proteinmpnn_path()}/protein_mpnn_run.py "
     shell_script += f"--pdb_path {pdb} "
     shell_script += f"--tied_positions_jsonl {tied} "
@@ -438,3 +438,43 @@ def parse_design(annotation: str, sequence: str) -> MPNNSeq:
         frequency=np.nan,
         selection=None,
     )
+
+
+def make_pssm_from_distribution(
+    config: dict, distribution: dict[int, dict[str, float]]
+) -> dict[str, dict[str, dict]]:
+    """
+    Generate a dictionary in the format that ProteinMPNN expects for a PSSM.
+
+    This has the following structure:
+    1. A key for the PDB
+    2. A key for each chain in the PDB
+    3. For each chain, the following keys: pssm_coef, pssm_bias, pssm_log_odds.
+        - Each of these has an entry for each residue
+        - `pssm_coef` allows a custom coefficient per position, but can just be 1.0 by default
+        - `pssm_log_odds` is optional, but can just be 1.0 by default
+        - `pssm_bias` has a length of 21 for each residue and gives the odds per amino acid
+        - TODO: I don't know the order of amino acids
+
+    Example for a 2-chain, 2-residue structure:
+        {
+            "4JPP": {
+                "A": {
+                    "pssm_coef": [1.0, 1.0],
+                    "pssm_bias": [
+                        [0.05, 0.05, ..., 0.05. 0.0],
+                        [0.05, 0.05, ..., 0.05. 0.0],
+                    ],
+                    "pssm_coef": [1.0, 1.0],
+                },
+                "B": {
+                    "pssm_coef": [1.0, 1.0],
+                    "pssm_bias": [
+                        [0.05, 0.05, ..., 0.05. 0.0],
+                        [0.05, 0.05, ..., 0.05. 0.0],
+                    ],
+                    "pssm_coef": [1.0, 1.0],
+                },
+            }
+        }
+    """

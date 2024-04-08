@@ -145,6 +145,10 @@ def make_config_negative(
         default=200,
         help="Number of difference distribution sequences to test by AlphaFold2",
     ),
+    num_af2_bias: int = typer.Option(
+        default=0,
+        help="Number of ProteinMPNN PSSM bias sequences to test by Alphafold2",
+    ),
     recycle_af2: int = typer.Option(default=3, help="Number of recycles to use in AF2"),
     top_plddt: float = typer.Option(
         default=90, help="AF2 pLDDT cutoff to select final sequences"
@@ -207,10 +211,12 @@ def make_config_negative(
         "temperature_mpnn": temperature_mpnn,
         "num_af2": num_af2_mean_similarity
         + num_af2_max_similarity
-        + num_af2_difference,
+        + num_af2_difference
+        + num_af2_bias,
         "num_af2_mean_similarity": num_af2_mean_similarity,
         "num_af2_max_similarity": num_af2_max_similarity,
         "num_af2_difference": num_af2_difference,
+        "num_af2_bias": num_af2_bias,
         "recycle_af2": recycle_af2,
         "top_plddt": top_plddt,
         "mean_plddt": mean_plddt,

@@ -138,9 +138,9 @@ def make_shell_script(config: dict, phase: str) -> str:
 
     shell_script = "#!/bin/bash\n\n"
     shell_script = f"cd {af2_run_path.absolute()}\n"
-    shell_script += f"source {paths.get_conda_source_path()}\n"
+    shell_script += f"source {paths.get_alphafold_conda_source_path()}\n"
     shell_script += "conda deactivate\n"
-    shell_script += f"conda activate {paths.get_alphafold_source_path()}\n"
+    shell_script += f"conda activate {paths.get_alphafold_env_path()}\n"
     shell_script += f"colabfold_batch {paths.get_alphafold_input_path(config, phase)} {af2_run_path} "
     shell_script += "--recompile-padding 1 "
     shell_script += "--msa-mode single_sequence "

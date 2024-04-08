@@ -225,7 +225,7 @@ def design_pore_negative(
             for i in range(int(config["num_af2_mean_similarity"]))
         ]
 
-        # choose 1/3 of designs based on max similarity
+        # choose designs based on max similarity
         positives_df = positives_df.sort_values(by="max_similarity")
         selected_sequences.extend(
             [
@@ -263,6 +263,16 @@ def design_pore_negative(
                 for i in range(num_difference)
             ]
         )
+
+        # TODO: run ProteinMPNN using the difference distribution as a bias
+        if config["num_af2_bias"] > 0:
+            pssm = proteinmpnn.make_pssm_from_distribution(
+                config, difference_distribution
+            )
+            print(pssm)
+            quit()
+
+        # TODO: pull all the ProteinMPNN sequences out
 
         # save the selected sequences as though they had been made by ProteinMPNN so we can use them downstream
         proteinmpnn.save_top_sequences(config, selected_sequences)
