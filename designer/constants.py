@@ -48,6 +48,29 @@ AMINO_ACID_THREE_TO_ONE = {
     "TRP": "W",
     "TYR": "Y",
 }
+PSSM_AA_ORDER = [
+    "A",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "K",
+    "L",
+    "M",
+    "N",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "V",
+    "W",
+    "Y",
+    "X",
+]
 BLOSUM_DF = pd.read_csv(DATA_DIR / "blosum" / "blosum62.csv").set_index("aa")
 BLOSUM_MATRIX = {
     aa_one: {aa_two: BLOSUM_DF.loc[aa_one, aa_two] for aa_two in CANONICAL_AMINO_ACIDS}

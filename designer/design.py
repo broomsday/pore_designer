@@ -271,6 +271,7 @@ def design_pore_negative(
             )
             print(pssm)
             quit()
+            # TODO: generate a fake config to run ProteinMPNN
 
         # TODO: pull all the ProteinMPNN sequences out
 

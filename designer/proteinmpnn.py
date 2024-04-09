@@ -16,7 +16,7 @@ from biotite.structure.io import load_structure
 from tqdm import tqdm
 
 from designer import paths, sequence
-from designer.constants import MPNN_HIT_TYPE_ORDER
+from designer.constants import MPNN_HIT_TYPE_ORDER, PSSM_AA_ORDER
 
 
 class MPNNSeq(NamedTuple):
@@ -440,6 +440,16 @@ def parse_design(annotation: str, sequence: str) -> MPNNSeq:
     )
 
 
+def bias_from_counts(counts: dict[str, int], aa_order: list[str]) -> list[float]:
+    """
+    Take a dictionary of amino acids with their counts and return just the frequencies.
+
+    Reorder to match the `aa_order`
+    """
+    total_count = sum(counts.values())
+    return [counts.get(amino_acid, 0.0) / total_count for amino_acid in aa_order]
+
+
 def make_pssm_from_distribution(
     config: dict, distribution: dict[int, dict[str, float]]
 ) -> dict[str, dict[str, dict]]:
@@ -454,7 +464,7 @@ def make_pssm_from_distribution(
         - `pssm_coef` allows a custom coefficient per position, but can just be 1.0 by default
         - `pssm_log_odds` is optional, but can just be 1.0 by default
         - `pssm_bias` has a length of 21 for each residue and gives the odds per amino acid
-        - TODO: I don't know the order of amino acids
+        - TODO: I don't know the order of amino acids (CURRENTLY ASSUMED SOMETHING IN `PSSM_AA_ORDER`)
 
     Example for a 2-chain, 2-residue structure:
         {
@@ -465,7 +475,7 @@ def make_pssm_from_distribution(
                         [0.05, 0.05, ..., 0.05. 0.0],
                         [0.05, 0.05, ..., 0.05. 0.0],
                     ],
-                    "pssm_coef": [1.0, 1.0],
+                    "pssm_log_odds": [1.0, 1.0],
                 },
                 "B": {
                     "pssm_coef": [1.0, 1.0],
@@ -473,8 +483,32 @@ def make_pssm_from_distribution(
                         [0.05, 0.05, ..., 0.05. 0.0],
                         [0.05, 0.05, ..., 0.05. 0.0],
                     ],
-                    "pssm_coef": [1.0, 1.0],
+                    "pssm_log_odds": [1.0, 1.0],
                 },
             }
         }
     """
+    # get the protein name and start the PSSM dict
+    pdb_name = Path(config["positive_pdb"]).stem
+    pssm = {pdb_name: {}}
+
+    # get the chain IDs
+    structure = load_structure(config["positive_pdb"])
+    chains = bts.get_chains(structure)
+
+    # generate the PSSM coef, bias, and log_odds
+    pssm_coef = [1.0 for _ in distribution]
+    pssm_log_odds = [1.0 for _ in distribution]
+    pssm_bias = [
+        bias_from_counts(counts, PSSM_AA_ORDER) for _, counts in distribution.items()
+    ]
+
+    # apply the distribution across each chain
+    for chain in chains:
+        pssm[pdb_name][chain] = {
+            "pssm_coef": pssm_coef,
+            "pssm_bias": pssm_bias,
+            "pssm_log_odds": pssm_log_odds,
+        }
+
+    return pssm
