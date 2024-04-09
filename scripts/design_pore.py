@@ -149,6 +149,10 @@ def make_config_negative(
         default=0,
         help="Number of ProteinMPNN PSSM bias sequences to test by Alphafold2",
     ),
+    bias_weight: float = typer.Option(
+        default=0.5,
+        help="How much to weight the PSSM bias above vs. ProteinMPNN",
+    ),
     recycle_af2: int = typer.Option(default=3, help="Number of recycles to use in AF2"),
     top_plddt: float = typer.Option(
         default=90, help="AF2 pLDDT cutoff to select final sequences"
@@ -217,6 +221,7 @@ def make_config_negative(
         "num_af2_max_similarity": num_af2_max_similarity,
         "num_af2_difference": num_af2_difference,
         "num_af2_bias": num_af2_bias,
+        "bias_weight": bias_weight,
         "recycle_af2": recycle_af2,
         "top_plddt": top_plddt,
         "mean_plddt": mean_plddt,

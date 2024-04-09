@@ -103,24 +103,33 @@ def rekey_proteinmpnn_dict(dict_path: Path) -> None:
         writer.write(new_dict)
 
 
-def make_shell_script(config: dict, pdb: Path | None = None) -> str:
+def make_shell_script(
+    config: dict,
+    pdb: Path | None = None,
+    out_folder: str | None = None,
+    designs: int | None = None,
+) -> str:
     """
     Generate a shell script to run the remaining ProteinMPNN jobs needed.
     """
     if pdb is None:
-        mpnn_folder = get_proteinmpnn_folder(config)
         pdb = config["input_pdb"]
-        fixed = config["fixed_dict"]
-    else:
-        mpnn_folder = get_proteinmpnn_folder(config) / f"{pdb.stem}"
-        fixed = None  # fixed positions not yet supported for negative design
 
-    tied = config["symmetry_dict"]
+    if out_folder is None:
+        mpnn_folder = get_proteinmpnn_folder(config)
+    else:
+        mpnn_folder = get_proteinmpnn_folder(config) / out_folder
     mpnn_folder.mkdir(exist_ok=True, parents=True)
 
-    designs = get_num_to_design(config)
-    if designs <= 0:
-        raise ValueError("No designs left to do")
+    if designs is None:
+        designs = get_num_to_design(config)
+        if designs <= 0:
+            raise ValueError("No designs left to do")
+
+    tied = config.get("symmetry_dict", None)
+    fixed = config.get("fixed_dict", None)
+    pssm = config.get("pssm_dict", None)
+    pssm_weight = config.get("bias_weight", None)
 
     shell_script = "#!/bin/bash\n\n"
     shell_script += f"source {paths.get_proteinmpnn_conda_source_path()}\n"
@@ -128,9 +137,15 @@ def make_shell_script(config: dict, pdb: Path | None = None) -> str:
     shell_script += f"conda activate {paths.get_proteinmpnn_env_path()}\n"
     shell_script += f"python {paths.get_proteinmpnn_path()}/protein_mpnn_run.py "
     shell_script += f"--pdb_path {pdb} "
-    shell_script += f"--tied_positions_jsonl {tied} "
+    if tied is not None:
+        shell_script += f"--tied_positions_jsonl {tied} "
     if fixed is not None:
         shell_script += f"--fixed_positions_jsonl {fixed} "
+    if pssm is not None:
+        shell_script += f"--pssm_jsonl {pssm} "
+        shell_script += "--pssm_bias_flag 1 "
+        if pssm_weight is not None:
+            shell_script += f"--pssm_multi {pssm_weight} "
     shell_script += f"--out_folder {mpnn_folder} "
     shell_script += f"--num_seq_per_target {designs} "
     shell_script += f"--sampling_temp {config['temperature_mpnn']} "
@@ -161,15 +176,15 @@ def run_proteinmpnn(shell_script: str) -> None:
     )
 
 
-def rename_existing_results(config: dict, pdb: str | None = None) -> None:
+def rename_existing_results(config: dict, out_folder: str | None = None) -> None:
     """
     Rename existing results files.
     """
     mpnn_folder = get_proteinmpnn_folder(config)
-    if pdb is None:
+    if out_folder is None:
         seqs_folder = mpnn_folder / "seqs"
     else:
-        seqs_folder = mpnn_folder / f"{pdb.stem}" / "seqs"
+        seqs_folder = mpnn_folder / out_folder / "seqs"
 
     recent_results_path = seqs_folder / "input.fa"
     if recent_results_path.is_file():
@@ -178,13 +193,16 @@ def rename_existing_results(config: dict, pdb: str | None = None) -> None:
         shutil.move(recent_results_path, new_results_path)
 
 
-def get_num_to_design(config: dict, pdb: str | None = None) -> int:
+def get_num_to_design(
+    config: dict, out_folder: str | None = None, num_to_design: int | None = None
+) -> int:
     """
     Determine how many designs still need to be made.
     """
-    num_to_design = config["num_mpnn"]
+    if num_to_design is None:
+        num_to_design = config["num_mpnn"]
 
-    designed_seqs = get_all_sequences(config, pdb)
+    designed_seqs = get_all_sequences(config, out_folder=out_folder)
     num_wt_seqs = len(list((get_proteinmpnn_folder(config) / "seqs").glob("*.fa")))
 
     return num_to_design - (len(designed_seqs) - num_wt_seqs)
@@ -204,14 +222,14 @@ def get_sequences(fasta: Path) -> list[MPNNSeq]:
     return designs
 
 
-def get_all_sequences(config: dict, pdb: str | None = None) -> list[MPNNSeq]:
+def get_all_sequences(config: dict, out_folder: str | None = None) -> list[MPNNSeq]:
     """
-    Get all designed sequences.
+    Get all designed sequences and the WT.
     """
-    if pdb is None:
+    if out_folder is None:
         mpnn_folder = get_proteinmpnn_folder(config)
     else:
-        mpnn_folder = get_proteinmpnn_folder(config) / f"{pdb.stem}"
+        mpnn_folder = get_proteinmpnn_folder(config) / out_folder
 
     seqs = []
     for seq_file in (mpnn_folder / "seqs").glob("*.fa"):
@@ -462,8 +480,8 @@ def make_pssm_from_distribution(
     3. For each chain, the following keys: pssm_coef, pssm_bias, pssm_log_odds.
         - Each of these has an entry for each residue
         - `pssm_coef` allows a custom coefficient per position, but can just be 1.0 by default
-        - `pssm_log_odds` is optional, but can just be 1.0 by default
         - `pssm_bias` has a length of 21 for each residue and gives the odds per amino acid
+        - `pssm_log_odds` is optional?, examples have 1.0 for each bias entry
         - TODO: I don't know the order of amino acids (CURRENTLY ASSUMED SOMETHING IN `PSSM_AA_ORDER`)
 
     Example for a 2-chain, 2-residue structure:
@@ -475,7 +493,10 @@ def make_pssm_from_distribution(
                         [0.05, 0.05, ..., 0.05. 0.0],
                         [0.05, 0.05, ..., 0.05. 0.0],
                     ],
-                    "pssm_log_odds": [1.0, 1.0],
+                    "pssm_log_odds": [
+                        [1.0, 1.0, ..., 1.0, 1.0],
+                        [1.0, 1.0, ..., 1.0, 1.0],
+                    ],
                 },
                 "B": {
                     "pssm_coef": [1.0, 1.0],
@@ -483,7 +504,10 @@ def make_pssm_from_distribution(
                         [0.05, 0.05, ..., 0.05. 0.0],
                         [0.05, 0.05, ..., 0.05. 0.0],
                     ],
-                    "pssm_log_odds": [1.0, 1.0],
+                    "pssm_log_odds": [
+                        [1.0, 1.0, ..., 1.0, 1.0],
+                        [1.0, 1.0, ..., 1.0, 1.0],
+                    ],
                 },
             }
         }
@@ -498,7 +522,7 @@ def make_pssm_from_distribution(
 
     # generate the PSSM coef, bias, and log_odds
     pssm_coef = [1.0 for _ in distribution]
-    pssm_log_odds = [1.0 for _ in distribution]
+    pssm_log_odds = [[1.0 for aa in PSSM_AA_ORDER] for _ in distribution]
     pssm_bias = [
         bias_from_counts(counts, PSSM_AA_ORDER) for _, counts in distribution.items()
     ]
@@ -512,3 +536,12 @@ def make_pssm_from_distribution(
         }
 
     return pssm
+
+
+def save_pssm(pssm_dict: dict[str, dict[str, dict]], pssm_file: Path) -> None:
+    """
+    Save a PSSM to a jsonlines file
+    """
+    with open(pssm_file, mode="wb") as fp:
+        with jsonlines.Writer(fp) as writer:
+            writer.write(pssm_dict)

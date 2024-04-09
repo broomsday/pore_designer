@@ -12,16 +12,25 @@ from designer import alphafold, proteinmpnn, sequence
 
 
 def make_minimal_select_seq(
-    id: str, sequence: str, oligomer: int, source: str = "wt"
+    id: str, sequence: str, oligomer: int | None = None, source: str = "wt"
 ) -> alphafold.SelectSeq:
     """
     Generate a SelectSeq object from a pdb_id, sequence, and oligomer count.
     """
+    if oligomer is not None:
+        full_sequence = [sequence] * oligomer
+        unique_chains = len(sequence.split(":"))
+    else:
+        full_sequence = sequence
+        unique_chains = len(set(full_sequence))
+
+    merged_sequence = ":".join(full_sequence)
+
     return alphafold.SelectSeq(
         id=id,
-        sequence=[sequence] * oligomer,
-        merged_sequence=":".join([sequence] * oligomer),
-        unique_chains=len(sequence.split(":")),
+        sequence=full_sequence,
+        merged_sequence=merged_sequence,
+        unique_chains=unique_chains,
         score=None,
         recovery=None,
         source=source,

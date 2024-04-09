@@ -151,9 +151,11 @@ def design_pore_negative(
     proteinmpnn.save_symmetry_dict(symmetry_dict, symmetry_path)
     config["symmetry_dict"] = symmetry_path
 
-    if proteinmpnn.get_num_to_design(config, positive_pdb) > 0:
-        proteinmpnn.rename_existing_results(config, positive_pdb)
-        proteinmpnn_script = proteinmpnn.make_shell_script(config, positive_pdb)
+    if proteinmpnn.get_num_to_design(config, out_folder=positive_pdb.stem) > 0:
+        proteinmpnn.rename_existing_results(config, out_folder=positive_pdb.stem)
+        proteinmpnn_script = proteinmpnn.make_shell_script(
+            config, pdb=positive_pdb, out_folder=positive_pdb.stem
+        )
         proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
     # run ProteinMPNN on negatives
@@ -163,9 +165,11 @@ def design_pore_negative(
         proteinmpnn.save_symmetry_dict(symmetry_dict, symmetry_path)
         config["symmetry_dict"] = symmetry_path
 
-        if proteinmpnn.get_num_to_design(config, negative_pdb) > 0:
-            proteinmpnn.rename_existing_results(config, negative_pdb)
-            proteinmpnn_script = proteinmpnn.make_shell_script(config, negative_pdb)
+        if proteinmpnn.get_num_to_design(config, out_folder=negative_pdb.stem) > 0:
+            proteinmpnn.rename_existing_results(config, out_folder=negative_pdb.stem)
+            proteinmpnn_script = proteinmpnn.make_shell_script(
+                config, pdb=negative_pdb, out_folder=negative_pdb.stem
+            )
             proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
     # summarize positive and negative into distributions and save sequence logos of each
@@ -220,7 +224,10 @@ def design_pore_negative(
         positives_df = positives_df.sort_values(by="mean_similarity")
         selected_sequences = [
             utils.make_minimal_select_seq(
-                i, positives_df.iloc[i].sequence, config["multimer"], "mean_similarity"
+                i,
+                positives_df.iloc[i].sequence,
+                oligomer=config["multimer"],
+                source="mean_similarity",
             )
             for i in range(int(config["num_af2_mean_similarity"]))
         ]
@@ -232,8 +239,8 @@ def design_pore_negative(
                 utils.make_minimal_select_seq(
                     i,
                     positives_df.iloc[i].sequence,
-                    config["multimer"],
-                    "max_similarity",
+                    oligomer=config["multimer"],
+                    source="max_similarity",
                 )
                 for i in range(int(config["num_af2_max_similarity"]))
             ]
@@ -258,22 +265,55 @@ def design_pore_negative(
         selected_sequences.extend(
             [
                 utils.make_minimal_select_seq(
-                    i, difference_sequences[i], config["multimer"], "difference"
+                    i,
+                    difference_sequences[i],
+                    oligomer=config["multimer"],
+                    source="difference",
                 )
                 for i in range(num_difference)
             ]
         )
 
-        # TODO: run ProteinMPNN using the difference distribution as a bias
+        # run ProteinMPNN using the difference distribution as a bias
         if config["num_af2_bias"] > 0:
             pssm = proteinmpnn.make_pssm_from_distribution(
                 config, difference_distribution
             )
-            print(pssm)
-            quit()
-            # TODO: generate a fake config to run ProteinMPNN
+            pssm_output = proteinmpnn.get_proteinmpnn_folder(config) / "bias_pssm.jsonl"
+            proteinmpnn.save_pssm(pssm, pssm_output)
+            config["pssm_dict"] = pssm_output
 
-        # TODO: pull all the ProteinMPNN sequences out
+            symmetry_path = Path(positive_pdb).with_name(
+                f"{positive_pdb.stem}.symm.jsonl"
+            )
+            config["symmetry_dict"] = symmetry_path
+
+            if (
+                proteinmpnn.get_num_to_design(
+                    config, out_folder="bias", num_to_design=config["num_af2_bias"]
+                )
+                > 0
+            ):
+                proteinmpnn.rename_existing_results(config, out_folder="bias")
+                proteinmpnn_script = proteinmpnn.make_shell_script(
+                    config,
+                    pdb=positive_pdb,
+                    out_folder="bias",
+                    designs=config["num_af2_bias"],
+                )
+                proteinmpnn.run_proteinmpnn(proteinmpnn_script)
+
+            bias_sequences = proteinmpnn.get_all_sequences(config, "bias")[
+                1:
+            ]  # drop the WT
+            selected_sequences.extend(
+                [
+                    utils.make_minimal_select_seq(
+                        i, bias_sequence.sequence, source="bias"
+                    )
+                    for i, bias_sequence in enumerate(bias_sequences)
+                ]
+            )
 
         # save the selected sequences as though they had been made by ProteinMPNN so we can use them downstream
         proteinmpnn.save_top_sequences(config, selected_sequences)

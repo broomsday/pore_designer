@@ -1,14 +1,10 @@
 *.pyc
 .vscode/
 .backup
-data/2XQS_multimer
-data/2XQS_monomer
-data/4JPP_multimer
-data/4JPN_multimer
-data/2XQS_434_frequency_7_monomer
-data/2XQS_434_monomer
+data/*.tar.gz
 data/metric_test
 data/negative_test
 data/mutation_test
 data/positive_test
+data/pssm_test
 tests/negative_test
