@@ -9,7 +9,7 @@ import numpy as np
 import biotite.structure as bts
 from biotite.structure.io import load_structure
 
-from designer.constants import AMINO_ACID_THREE_TO_ONE
+from designer.constants import AMINO_ACID_THREE_TO_ONE, HYDROPHOBIC_ELEMENTS
 
 
 def load_pdb(pdb_file: Path) -> bts.AtomArray:
@@ -213,3 +213,26 @@ def compute_rmsd_to_template(
         rmsds.append(bts.rmsd(template, predicted))
 
     return float(np.mean(rmsds))
+
+
+def compute_hydrophobicity(pdb_file: Path) -> float:
+    """
+    Compute the fraction of the total SASA that is made up of hydrophobic atoms.
+    """
+    structure = load_structure(pdb_file)
+
+    # consider only heavy atoms, otherwise we'd need to know what an H was bound to
+    structure = structure[structure.element != "H"]
+
+    sasa = bts.sasa(structure)
+
+    elements = structure.element
+    hydrophobic_sasa = [
+        area if element in HYDROPHOBIC_ELEMENTS else 0
+        for area, element in zip(sasa, elements)
+    ]
+
+    total_sasa = np.sum(sasa)
+    total_hydrophobic_sasa = np.sum(hydrophobic_sasa)
+
+    return total_hydrophobic_sasa / total_sasa

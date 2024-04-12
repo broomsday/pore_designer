@@ -39,6 +39,9 @@ def make_config_positive(
     ),
     top_rmsd: float = typer.Option(default=1.0, help="Max RMSD for selection"),
     mean_rmsd: float = typer.Option(default=2.0, help="Max RMSD for selection"),
+    max_hydrophobicity: float = typer.Option(
+        default=0.57, help="Maximum fraction of surface that is hydrophobic"
+    ),
     select_identity: float = typer.Option(
         default=0.9, help="Maximum identity between any two selected sequences"
     ),
@@ -93,6 +96,7 @@ def make_config_positive(
         "mean_plddt": mean_plddt,
         "top_rmsd": top_rmsd,
         "mean_rmsd": mean_rmsd,
+        "max_hydrophobicity": max_hydrophobicity,
         "select_identity": select_identity,
         "select_oligomer_rank": select_oligomer_rank,
         "oligomer_lower_offset": oligomer_lower_offset,
@@ -162,6 +166,9 @@ def make_config_negative(
     ),
     top_rmsd: float = typer.Option(default=1.0, help="Max RMSD for selection"),
     mean_rmsd: float = typer.Option(default=2.0, help="Max RMSD for selection"),
+    max_hydrophobicity: float = typer.Option(
+        default=0.57, help="Maximum fraction of surface that is hydrophobic"
+    ),
     select_identity: float = typer.Option(
         default=0.95, help="Maximum identity between any two selected sequences"
     ),
@@ -227,6 +234,7 @@ def make_config_negative(
         "mean_plddt": mean_plddt,
         "top_rmsd": top_rmsd,
         "mean_rmsd": mean_rmsd,
+        "max_hydrophobicity": max_hydrophobicity,
         "select_identity": select_identity,
         "select_oligomer_rank": select_oligomer_rank,
         "oligomer_lower_offset": oligomer_lower_offset,
@@ -263,6 +271,9 @@ def make_config_mutation(
     ),
     top_rmsd: float = typer.Option(default=1.0, help="Max RMSD for selection"),
     mean_rmsd: float = typer.Option(default=2.0, help="Max RMSD for selection"),
+    max_hydrophobicity: float = typer.Option(
+        default=0.57, help="Maximum fraction of surface that is hydrophobic"
+    ),
     select_identity: float = typer.Option(
         default=0.99, help="Maximum identity between any two selected sequences"
     ),
@@ -309,6 +320,7 @@ def make_config_mutation(
         "mean_plddt": mean_plddt,
         "top_rmsd": top_rmsd,
         "mean_rmsd": mean_rmsd,
+        "max_hydrophobicity": max_hydrophobicity,
         "select_identity": select_identity,
         "select_oligomer_rank": select_oligomer_rank,
         "oligomer_lower_offset": oligomer_lower_offset,

@@ -79,6 +79,7 @@ def design_pore_positive(
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
             mean_rmsd=config["mean_rmsd"],
+            top_hydrophobicity=config["max_hydrophobicity"],
             oligomer=None,
             max_identity=config["select_identity"],
         )
@@ -122,6 +123,7 @@ def design_pore_positive(
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
             mean_rmsd=config["mean_rmsd"],
+            top_hydrophobicity=config["max_hydrophobicity"],
             oligomer=config["select_oligomer_rank"],
             max_identity=config["select_identity"],
         )
@@ -344,6 +346,7 @@ def design_pore_negative(
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
             mean_rmsd=config["mean_rmsd"],
+            top_hydrophobicity=config["max_hydrophobicity"],
             oligomer=None,
             max_identity=config["select_identity"],
         )
@@ -387,6 +390,7 @@ def design_pore_negative(
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
             mean_rmsd=config["mean_rmsd"],
+            top_hydrophobicity=config["max_hydrophobicity"],
             oligomer=config["select_oligomer_rank"],
             max_identity=config["select_identity"],
         )
@@ -474,6 +478,7 @@ def design_pore_mutations(
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
             mean_rmsd=config["mean_rmsd"],
+            top_hydrophobicity=config["max_hydrophobicity"],
             oligomer=None,
             max_identity=config["select_identity"],
         )
@@ -517,6 +522,7 @@ def design_pore_mutations(
             mean_plddt=config["mean_plddt"],
             top_rmsd=config["top_rmsd"],
             mean_rmsd=config["mean_rmsd"],
+            top_hydrophobicity=config["max_hydrophobicity"],
             oligomer=config["select_oligomer_rank"],
             max_identity=config["select_identity"],
         )

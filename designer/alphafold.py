@@ -30,6 +30,7 @@ class SelectSeq(NamedTuple):
     mean_plddt: float
     top_rmsd: float
     mean_rmsd: float
+    top_hydrophobicity: float
     top_oligomer: int
     designed_oligomer_rank: int
 
@@ -201,10 +202,11 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
         top_plddt = file_utils.get_average_metric(result_dir, top_only=True)
         mean_plddt = file_utils.get_average_metric(result_dir, top_only=False)
 
-        # compute RMSD
+        # compute RMSD and hydrophobicity
         input_pdb = paths.get_input_pdb_path(config)
         top_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=True)
         mean_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=False)
+        top_hydrophobicity = pdb.compute_hydrophobicity(input_pdb)
 
         # cross-reference the sequence with proteinmpnn to get proteinmpnn metrics
         merged_sequence = alphafold_input.loc[sequence_id].sequence
@@ -227,6 +229,7 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
             mean_plddt=mean_plddt,
             top_rmsd=top_rmsd,
             mean_rmsd=mean_rmsd,
+            top_hydrophobicity=top_hydrophobicity,
             top_oligomer=None,
             designed_oligomer_rank=None,
         )
@@ -312,6 +315,7 @@ def compile_alphafold_oligomer_results(
             mean_plddt=designed_seq.mean_plddt,
             top_rmsd=designed_seq.top_rmsd,
             mean_rmsd=designed_seq.mean_rmsd,
+            top_hydrophobicity=designed_seq.top_hydrophobicity,
             top_oligomer=top_oligomer,
             designed_oligomer_rank=designed_oligomer_rank,
         )
@@ -453,6 +457,7 @@ def passes_criteria(
     mean_plddt: float,
     top_rmsd: float,
     mean_rmsd: float,
+    top_hydrophobicity: float,
     oligomer: int | None,
 ) -> bool:
     """
@@ -465,6 +470,8 @@ def passes_criteria(
     if seq.top_rmsd > top_rmsd:
         return False
     if seq.mean_rmsd > mean_rmsd:
+        return False
+    if seq.top_hydrophobicity > top_hydrophobicity:
         return False
     if (
         (seq.designed_oligomer_rank is not None)
@@ -482,28 +489,39 @@ def select_top(
     mean_plddt: float = 80,
     top_rmsd: float = 1.0,
     mean_rmsd: float = 2.0,
+    top_hydrophobicity: float = 0.57,
     oligomer: int | None = None,
     max_identity: float = 0.9,
 ) -> list[SelectSeq]:
     """
     Select the top AF2 sequences based on a set of criteria.
     """
-    # TODO: here need to add the hydrophobicity check
     # filter based on plddt and RMSD and oligomer
     filtered_seqs = [
         seq
         for seq in evaluated_seqs
-        if passes_criteria(seq, top_plddt, mean_plddt, top_rmsd, mean_rmsd, oligomer)
+        if passes_criteria(
+            seq,
+            top_plddt,
+            mean_plddt,
+            top_rmsd,
+            mean_rmsd,
+            top_hydrophobicity,
+            oligomer,
+        )
     ]
 
     if len(filtered_seqs) == 0:
         if oligomer is None:
+            # TODO: improve this output?
+            #   show the top example passing each?
             raise ValueError(
-                "plddt and/or rmsd cutoffs are too strict, no sequences found.\n"
+                "plddt, rmsd, or hydrophobicity cutoffs are too strict, no sequences found.\n"
                 f"max top plddt: {max([seq.top_plddt for seq in evaluated_seqs])}\n"
                 f"max mean plddt: {max([seq.mean_plddt for seq in evaluated_seqs])}\n"
                 f"min top rmsd: {min([seq.top_rmsd for seq in evaluated_seqs])}\n"
                 f"min mean rmsd: {min([seq.mean_rmsd for seq in evaluated_seqs])}\n"
+                f"min hydrophobicity: {min([seq.top_hydrophobicity for seq in evaluated_seqs])}\n"
             )
         else:
             raise ValueError(
@@ -591,6 +609,7 @@ def load_alphafold(config: dict, phase: str, stage: str) -> list[SelectSeq]:
             mean_plddt=seq["mean_plddt"],
             top_rmsd=seq["top_rmsd"],
             mean_rmsd=seq["mean_rmsd"],
+            top_hydrophobicity=seq["top_hydrophobicity"],
             top_oligomer=seq["top_oligomer"],
             designed_oligomer_rank=seq["designed_oligomer_rank"],
         )
