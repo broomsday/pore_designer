@@ -2,9 +2,3 @@
 .vscode/
 .backup
 data/*.tar.gz
-data/metric_test
-data/negative_test
-data/mutation_test
-data/positive_test
-data/pssm_test
-tests/negative_test
