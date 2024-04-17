@@ -41,6 +41,7 @@ def make_minimal_select_seq(
         mean_plddt=None,
         top_rmsd=None,
         mean_rmsd=None,
+        top_hydrophobicity=None,
         top_oligomer=None,
         designed_oligomer_rank=None,
     )
@@ -56,7 +57,8 @@ def make_sequence_distribution(
 
     if not distribution_path.is_file():
         sequences = [
-            design.sequence[0] for design in proteinmpnn.get_all_sequences(config, pdb)
+            design.sequence[0]
+            for design in proteinmpnn.get_all_sequences(config, pdb.stem)
         ]
         logo_df = logomaker.alignment_to_matrix(sequences)
         logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
@@ -100,7 +102,7 @@ def score_for_negative_design(
     """
     Compute negative design similarity scores for all designs.
     """
-    positives = proteinmpnn.get_all_sequences(config, Path(config["positive_pdb"]))
+    positives = proteinmpnn.get_all_sequences(config, Path(config["positive_pdb"]).stem)
     positives_df = pd.DataFrame().from_dict(
         {"sequence": [design.sequence[0] for design in positives]}
     )
