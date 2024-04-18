@@ -1,1 +1,19 @@
-{"job_type": "mutation", "directory": "/home/broom/AlphaCarbon/code/pore_designer/tests/mutation_test/output", "input_pdb": "/home/broom/AlphaCarbon/code/pore_designer/tests/mutation_test/output/input/input.pdb", "mutations_per_seq": 2, "mutation_distribution": "/home/broom/AlphaCarbon/code/pore_designer/tests/mutation_test/inputs/4JPP_640_11mer.json", "num_af2": 2, "recycle_af2": 3, "top_plddt": 60.0, "mean_plddt": 30.0, "top_rmsd": 4.0, "mean_rmsd": 40.0, "max_hydrophobicity": 0.65, "select_identity": 0.99, "select_oligomer_rank": 3, "oligomer_lower_offset": 1, "oligomer_higher_offset": 2, "multimer": 7}
+{
+    "job_type": "mutation",
+    "directory": "/workspace/tests/mutation_test/output",
+    "input_pdb": "/workspace/tests/mutation_test/output/input/input.pdb",
+    "mutations_per_seq": 2,
+    "mutation_distribution": "/workspace/tests/mutation_test/inputs/4JPP_640_11mer.json",
+    "num_af2": 2,
+    "recycle_af2": 3,
+    "top_plddt": 60.0,
+    "mean_plddt": 30.0,
+    "top_rmsd": 4.0,
+    "mean_rmsd": 40.0,
+    "max_hydrophobicity": 0.65,
+    "select_identity": 0.99,
+    "select_oligomer_rank": 3,
+    "oligomer_lower_offset": 1,
+    "oligomer_higher_offset": 2,
+    "multimer": 7
+}

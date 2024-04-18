@@ -1,7 +1,7 @@
 {
     "job_type": "metric",
-    "directory": "/home/broom/AlphaCarbon/code/pore_designer/tests/metric_test/output",
-    "input_csv": "/home/broom/AlphaCarbon/code/pore_designer/tests/metric_test/output/input/input.csv",
+    "directory": "/workspace/tests/metric_test/output",
+    "input_csv": "/workspace/tests/metric_test/output/input/input.csv",
     "recycle_af2": 3,
     "oligomer_lower_offset": 3,
     "oligomer_higher_offset": 4,
