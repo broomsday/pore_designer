@@ -34,8 +34,7 @@ PLOT_Y_LIMS = {
 }
 
 
-# TODO: rename this if going beyond just pLDDT
-def make_oligomer_v_plddt_plot(
+def make_oligomer_plots(
     oligomer_values: pd.DataFrame,
     design_id: str,
     save_dir: Path,
@@ -167,7 +166,7 @@ def plot_oligomer_check(config: dict) -> None:
             oligomer_values["design_id"] == selected.id
         ]
 
-        make_oligomer_v_plddt_plot(
+        make_oligomer_plots(
             selected_oligomer_values, selected.id, seq_directory, config["multimer"]
         )
 
@@ -204,7 +203,7 @@ def plot_all_oligomer_checks(config: dict) -> None:
         # generate the plot
         seq_directory = final_directory / str(base_pdb)
         seq_directory.mkdir(exist_ok=True)
-        make_oligomer_v_plddt_plot(
+        make_oligomer_plots(
             selected_oligomer_values, base_pdb, seq_directory, wt_oligomer
         )
 
