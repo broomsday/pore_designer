@@ -25,6 +25,13 @@ METRICS = {
 
 FONTSIZE = 12
 HIGHLIGHT_COLOR = "red"
+PLOT_Y_LIMS = {
+    "plddt": [20, 100],
+    "pae": [0, 20],
+    "ptm": [0, 1],
+    "iptm": [0, 1],
+    "mpnn": [0, 3],
+}
 
 
 # TODO: rename this if going beyond just pLDDT
@@ -33,42 +40,78 @@ def make_oligomer_v_plddt_plot(
     design_id: str,
     save_dir: Path,
     intended_oligomer: int,
-    min_plddt: float = 30,
 ) -> None:
     """
     Produce a split plot of oligomer vs. plddt, one for top model only and one for all models.
     """
-    # TODO: do 5 plots: top_plddt, top_pae, top_ptm, top_iptm, top_mpnn
-    figure, axes = plt.subplots(2, sharex=True, sharey=True)
-    axes[0].set_ylim(min_plddt, 100)
+    # do 5 plots: top_plddt, top_pae, top_ptm, top_iptm, top_mpnn
+    figure, axes = plt.subplots(5, sharex=True, sharey=False)
+    axes[0].set_ylim(PLOT_Y_LIMS["plddt"][0], PLOT_Y_LIMS["plddt"][1])
+    axes[1].set_ylim(PLOT_Y_LIMS["pae"][0], PLOT_Y_LIMS["pae"][1])
+    axes[2].set_ylim(PLOT_Y_LIMS["ptm"][0], PLOT_Y_LIMS["ptm"][1])
+    axes[3].set_ylim(PLOT_Y_LIMS["iptm"][0], PLOT_Y_LIMS["iptm"][1])
+    axes[4].set_ylim(PLOT_Y_LIMS["mpnn"][0], PLOT_Y_LIMS["mpnn"][1])
     figure.set_figwidth(5)
-    figure.set_figheight(8)
+    figure.set_figheight(20)
 
     # plot top pLDDT and best oligomer
     axes[0].scatter(
         oligomer_values.oligomer.to_list(), oligomer_values.top_plddt.to_list()
     )
     best_oligomer, best_plddt = alphafold.get_best_oligomer(
-        oligomer_values, "top_plddt"
+        oligomer_values, "top_plddt", higher=True
     )
     axes[0].scatter(best_oligomer, best_plddt, c="red")
 
-    # plot mean pLDDT and best oligomer
+    # plot top pae and best oligomer
     axes[1].scatter(
-        oligomer_values.oligomer.to_list(), oligomer_values.mean_plddt.to_list()
+        oligomer_values.oligomer.to_list(), oligomer_values.top_pae.to_list()
     )
-    best_oligomer, best_plddt = alphafold.get_best_oligomer(
-        oligomer_values, "mean_plddt"
+    best_oligomer, best_pae = alphafold.get_best_oligomer(
+        oligomer_values, "top_pae", higher=False
     )
-    axes[1].scatter(best_oligomer, best_plddt, c="red")
+    axes[1].scatter(best_oligomer, best_pae, c="red")
+
+    # plot top ptm and best oligomer
+    axes[2].scatter(
+        oligomer_values.oligomer.to_list(), oligomer_values.top_ptm.to_list()
+    )
+    best_oligomer, best_ptm = alphafold.get_best_oligomer(
+        oligomer_values, "top_ptm", higher=True
+    )
+    axes[2].scatter(best_oligomer, best_ptm, c="red")
+
+    # plot top iptm and best oligomer
+    axes[3].scatter(
+        oligomer_values.oligomer.to_list(), oligomer_values.top_iptm.to_list()
+    )
+    best_oligomer, best_iptm = alphafold.get_best_oligomer(
+        oligomer_values, "top_iptm", higher=True
+    )
+    axes[3].scatter(best_oligomer, best_iptm, c="red")
+
+    # plot top mpnn and best oligomer
+    axes[4].scatter(
+        oligomer_values.oligomer.to_list(), oligomer_values.top_mpnn.to_list()
+    )
+    best_oligomer, best_mpnn = alphafold.get_best_oligomer(
+        oligomer_values, "top_mpnn", higher=False
+    )
+    axes[4].scatter(best_oligomer, best_mpnn, c="red")
 
     if intended_oligomer is not None:
         axes[0].axvline(x=intended_oligomer, color="red")
         axes[1].axvline(x=intended_oligomer, color="red")
+        axes[2].axvline(x=intended_oligomer, color="red")
+        axes[3].axvline(x=intended_oligomer, color="red")
+        axes[4].axvline(x=intended_oligomer, color="red")
 
     axes[0].set_title(design_id)
     axes[0].set(ylabel="top model pLDDT")
-    axes[1].set(xlabel="oligomers", ylabel="all models pLDDT")
+    axes[1].set(ylabel="top model PAE")
+    axes[2].set(ylabel="top model ptm")
+    axes[3].set(ylabel="top model iptm")
+    axes[4].set(xlabel="oligomers", ylabel="top model MPNN Score")
     plt.tight_layout()
     plt.savefig(save_dir / f"{design_id}.png")
     plt.close()

@@ -733,13 +733,18 @@ def report_selected(config: dict, selected: list[SelectSeq]) -> None:
 
 
 def get_best_oligomer(
-    oligomer_values: pd.DataFrame, sort_column: str
+    oligomer_values: pd.DataFrame, sort_column: str, higher: bool = True
 ) -> tuple[int, float]:
     """
     Get the oligomer stoichiometry and plddt of the highest plddt oligomer.
     """
-    assert sort_column in ["top_plddt", "mean_plddt"]
+    assert sort_column in oligomer_values.columns.to_list()
 
-    sorted_oligomers = oligomer_values.sort_values(by=[sort_column], ascending=False)
+    if higher:
+        sorted_oligomers = oligomer_values.sort_values(
+            by=[sort_column], ascending=False
+        )
+    else:
+        sorted_oligomers = oligomer_values.sort_values(by=[sort_column], ascending=True)
 
     return sorted_oligomers.iloc[0]["oligomer"], sorted_oligomers.iloc[0][sort_column]
