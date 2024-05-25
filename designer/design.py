@@ -590,7 +590,7 @@ def produce_multimer_metrics(
     else:
         oligomer_values = pd.read_csv(oligomer_values_csv, index_col=0)
 
-    # TODO: plot the oligomer check plot for each PDB
+    # plot the oligomer check plot for each PDB
     plotting.plot_all_oligomer_checks(config)
 
     metric_correlations = plotting.compute_metric_correlations(oligomer_values)

@@ -27,6 +27,7 @@ FONTSIZE = 12
 HIGHLIGHT_COLOR = "red"
 
 
+# TODO: rename this if going beyond just pLDDT
 def make_oligomer_v_plddt_plot(
     oligomer_values: pd.DataFrame,
     design_id: str,
@@ -37,7 +38,7 @@ def make_oligomer_v_plddt_plot(
     """
     Produce a split plot of oligomer vs. plddt, one for top model only and one for all models.
     """
-    # TODO: do 4 plots: top_plddt, top_pae, top_ptm, top_iptm
+    # TODO: do 5 plots: top_plddt, top_pae, top_ptm, top_iptm, top_mpnn
     figure, axes = plt.subplots(2, sharex=True, sharey=True)
     axes[0].set_ylim(min_plddt, 100)
     figure.set_figwidth(5)
@@ -137,16 +138,32 @@ def plot_all_oligomer_checks(config: dict) -> None:
         Path(config["directory"]) / "oligomer_values.csv", index_col=0
     )
 
-    # TODO: set a column to hold the base design/PDB value without the oligomer notation
+    # set a column to hold the base design/PDB value without the oligomer notation
+    oligomer_values["base_pdb"] = oligomer_values["design_id"].apply(
+        lambda id: "_".join(id.split("_")[:-1])
+    )
+    base_pdbs = set(oligomer_values["base_pdb"].to_list())
 
-    # TODO: iterate over each group of the above
+    # iterate over all results for each base pdb
+    final_directory = Path(config["directory"]) / "final_selected"
+    final_directory.mkdir(exist_ok=True)
+    for base_pdb in base_pdbs:
+        #  pull out values for just this PDB
+        selected_oligomer_values = oligomer_values[
+            oligomer_values["base_pdb"] == base_pdb
+        ]
 
-    # TODO: use the WT column to get the WT value
+        # use the WT column to get the WT oligomer value
+        wt_oligomer = int(
+            selected_oligomer_values[selected_oligomer_values["wt"]]["oligomer"]
+        )
 
-    # TODO: generate the plot
-
-    print(oligomer_values)
-    quit()
+        # generate the plot
+        seq_directory = final_directory / str(base_pdb)
+        seq_directory.mkdir(exist_ok=True)
+        make_oligomer_v_plddt_plot(
+            selected_oligomer_values, base_pdb, seq_directory, wt_oligomer
+        )
 
 
 def get_top_predicted_by_metric(
