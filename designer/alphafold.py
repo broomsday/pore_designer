@@ -9,10 +9,12 @@ from typing import NamedTuple
 import json
 
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 
 from designer.proteinmpnn import MPNNSeq
 from designer import proteinmpnn, file_utils, pdb, paths, sequence, plotting
+from designer.constants import PLDDT_NORM_FACTOR, PAE_NORM_FACTOR
 
 
 class SelectSeq(NamedTuple):
@@ -349,6 +351,9 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         "mean_ptm": [],
         "top_iptm": [],
         "mean_iptm": [],
+        "top_quad": [],
+        "mean_quad": [],
+        "top_mpnn": [],
         "wt": [],
     }
     for result_file in tqdm(
@@ -395,6 +400,25 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         mean_iptm = file_utils.get_average_metric(
             result_dir, top_only=False, metric="iptm"
         )
+        top_quad_score = np.mean(
+            [
+                (top_plddt / PLDDT_NORM_FACTOR),
+                1 - (top_pae / PAE_NORM_FACTOR),
+                top_ptm,
+                top_iptm,
+            ]
+        )
+        mean_quad_score = np.mean(
+            [
+                (mean_plddt / PLDDT_NORM_FACTOR),
+                1 - (mean_pae / PAE_NORM_FACTOR),
+                mean_ptm,
+                mean_iptm,
+            ]
+        )
+        top_mpnn_ca_score = proteinmpnn.compute_ca_score(
+            file_utils.get_pdb_by_rank(result_dir, 1), config
+        )
 
         oligomer_seqs["design_id"].append(design_id)
         oligomer_seqs["oligomer"].append(oligomer)
@@ -408,6 +432,9 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         oligomer_seqs["mean_ptm"].append(mean_ptm)
         oligomer_seqs["top_iptm"].append(top_iptm)
         oligomer_seqs["mean_iptm"].append(mean_iptm)
+        oligomer_seqs["top_quad"].append(top_quad_score)
+        oligomer_seqs["mean_quad"].append(mean_quad_score)
+        oligomer_seqs["top_mpnn"].append(top_mpnn_ca_score)
         oligomer_seqs["wt"].append(True)
 
     # Process the expanded oligomers
@@ -461,6 +488,25 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         mean_iptm = file_utils.get_average_metric(
             result_dir, top_only=False, metric="iptm"
         )
+        top_quad_score = np.mean(
+            [
+                (top_plddt / PLDDT_NORM_FACTOR),
+                1 - (top_pae / PAE_NORM_FACTOR),
+                top_ptm,
+                top_iptm,
+            ]
+        )
+        mean_quad_score = np.mean(
+            [
+                (mean_plddt / PLDDT_NORM_FACTOR),
+                1 - (mean_pae / PAE_NORM_FACTOR),
+                mean_ptm,
+                mean_iptm,
+            ]
+        )
+        top_mpnn_ca_score = proteinmpnn.compute_ca_score(
+            file_utils.get_pdb_by_rank(result_dir, 1), config
+        )
 
         oligomer_seqs["design_id"].append(design_id)
         oligomer_seqs["oligomer"].append(oligomer)
@@ -474,10 +520,14 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         oligomer_seqs["mean_ptm"].append(mean_ptm)
         oligomer_seqs["top_iptm"].append(top_iptm)
         oligomer_seqs["mean_iptm"].append(mean_iptm)
+        oligomer_seqs["top_quad"].append(top_quad_score)
+        oligomer_seqs["mean_quad"].append(mean_quad_score)
+        oligomer_seqs["top_mpnn"].append(top_mpnn_ca_score)
         oligomer_seqs["wt"].append(False)
 
     # summarize the oligomer results into a dataframe for use in plotting etc.
     oligomer_df = pd.DataFrame().from_dict(oligomer_seqs)
+    # TODO: consider here computing rank-based values to put directly into the output for e.g. plotting
     oligomer_df.to_csv(Path(config["directory"]) / "oligomer_values.csv")
 
     return oligomer_df

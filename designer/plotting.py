@@ -18,6 +18,9 @@ METRICS = {
     "mean_ptm": "higher",
     "top_iptm": "higher",
     "mean_iptm": "higher",
+    "top_quad": "higher",
+    "mean_quad": "higher",
+    "top_mpnn": "lower",
 }
 
 FONTSIZE = 12
@@ -34,7 +37,7 @@ def make_oligomer_v_plddt_plot(
     """
     Produce a split plot of oligomer vs. plddt, one for top model only and one for all models.
     """
-    # TODO: do 3 plots: top_plddt, top_pae, top_iptm
+    # TODO: do 4 plots: top_plddt, top_pae, top_ptm, top_iptm
     figure, axes = plt.subplots(2, sharex=True, sharey=True)
     axes[0].set_ylim(min_plddt, 100)
     figure.set_figwidth(5)
@@ -102,9 +105,9 @@ def make_metric_correlation_plot(
     plt.close()
 
 
-def plot_oligomer_check(config) -> None:
+def plot_oligomer_check(config: dict) -> None:
     """
-    Load the plddt values for each oligomer and plot
+    Load the plddt values for each oligomer and plot.
     """
     # load the full and selected oligomer results
     oligomer_values = pd.read_csv(
@@ -123,6 +126,27 @@ def plot_oligomer_check(config) -> None:
         make_oligomer_v_plddt_plot(
             selected_oligomer_values, selected.id, seq_directory, config["multimer"]
         )
+
+
+def plot_all_oligomer_checks(config: dict) -> None:
+    """
+    Make an oligomer plot for all designs/PDBs.
+    """
+    # load the full and selected oligomer results
+    oligomer_values = pd.read_csv(
+        Path(config["directory"]) / "oligomer_values.csv", index_col=0
+    )
+
+    # TODO: set a column to hold the base design/PDB value without the oligomer notation
+
+    # TODO: iterate over each group of the above
+
+    # TODO: use the WT column to get the WT value
+
+    # TODO: generate the plot
+
+    print(oligomer_values)
+    quit()
 
 
 def get_top_predicted_by_metric(

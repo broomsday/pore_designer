@@ -110,3 +110,19 @@ def get_average_metric(
         )
 
     return mean_metric
+
+
+def get_pdb_by_rank(result_dir: Path, rank: int = 1) -> Path:
+    """
+    Return the AF2 predicted structure by rank
+    """
+    pdbs = list(result_dir.glob("*_rank_001_*.pdb"))
+
+    if len(pdbs) == 1:
+        return pdbs[0]
+    if len(pdbs) == 0:
+        raise ValueError(
+            f"Could not find any PDBs matching rank {rank} in {result_dir}"
+        )
+
+    raise ValueError(f"Found more than one PDB matching rank {rank} in {result_dir}")

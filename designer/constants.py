@@ -79,3 +79,6 @@ BLOSUM_MATRIX = {
 
 MPNN_HIT_TYPE_ORDER = ["score", "recovery", "mutation", "frequency"]
 HYDROPHOBIC_ELEMENTS = ["C", "S"]
+
+PLDDT_NORM_FACTOR = 100
+PAE_NORM_FACTOR = 10

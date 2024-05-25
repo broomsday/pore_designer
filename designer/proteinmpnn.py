@@ -482,7 +482,6 @@ def make_pssm_from_distribution(
         - `pssm_coef` allows a custom coefficient per position, but can just be 1.0 by default
         - `pssm_bias` has a length of 21 for each residue and gives the odds per amino acid
         - `pssm_log_odds` is optional?, examples have 1.0 for each bias entry
-        - TODO: I don't know the order of amino acids (CURRENTLY ASSUMED SOMETHING IN `PSSM_AA_ORDER`)
 
     Example for a 2-chain, 2-residue structure:
         {
@@ -522,7 +521,7 @@ def make_pssm_from_distribution(
 
     # generate the PSSM coef, bias, and log_odds
     pssm_coef = [1.0 for _ in distribution]
-    pssm_log_odds = [[1.0 for aa in PSSM_AA_ORDER] for _ in distribution]
+    pssm_log_odds = [[1.0 for _ in PSSM_AA_ORDER] for _ in distribution]
     pssm_bias = [
         bias_from_counts(counts, PSSM_AA_ORDER) for _, counts in distribution.items()
     ]
@@ -545,3 +544,40 @@ def save_pssm(pssm_dict: dict[str, dict[str, dict]], pssm_file: Path) -> None:
     with open(pssm_file, mode="wb") as fp:
         with jsonlines.Writer(fp) as writer:
             writer.write(pssm_dict)
+
+
+def compute_ca_score(pdb: Path, config: dict) -> float:
+    """
+    Use the Ca-only model to quickly compute the score for a PDB.
+    """
+    mpnn_folder = Path(config["directory"]) / "ProteinMPNN" / "oligomer"
+    mpnn_folder.mkdir(exist_ok=True, parents=True)
+
+    # make the Ca-only scoring shell script
+    shell_script = "#!/bin/bash\n\n"
+    shell_script += f"source {paths.get_proteinmpnn_conda_source_path()}\n"
+    shell_script += "conda deactivate\n"
+    shell_script += f"conda activate {paths.get_proteinmpnn_env_path()}\n"
+    shell_script += f"python {paths.get_proteinmpnn_path()}/protein_mpnn_run.py "
+    shell_script += f"--pdb_path {pdb} "
+    shell_script += f"--out_folder {mpnn_folder} "
+    shell_script += "--ca_only "
+    shell_script += "--score_only 1 "
+
+    # check to see if the file exists already and run if not
+    score_file = mpnn_folder / "score_only" / f"{pdb.stem}_pdb.npz"
+    if not score_file.is_file():
+        # run ProteinMPNN
+        print("Running ProteinMPNN")
+        subprocess.run(
+            shell_script,
+            shell=True,
+            executable="/bin/bash",
+            stdout=subprocess.DEVNULL,
+            check=False,
+        )
+
+    # pull out the score
+    score = np.load(score_file)["score"][0]
+
+    return score
