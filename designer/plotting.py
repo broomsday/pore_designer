@@ -14,6 +14,10 @@ METRICS = {
     "mean_pae": "lower",
     "top_max_pae": "lower",
     "mean_max_pae": "lower",
+    "top_ptm": "higher",
+    "mean_ptm": "higher",
+    "top_iptm": "higher",
+    "mean_iptm": "higher",
 }
 
 FONTSIZE = 12
@@ -30,6 +34,7 @@ def make_oligomer_v_plddt_plot(
     """
     Produce a split plot of oligomer vs. plddt, one for top model only and one for all models.
     """
+    # TODO: do 3 plots: top_plddt, top_pae, top_iptm
     figure, axes = plt.subplots(2, sharex=True, sharey=True)
     axes[0].set_ylim(min_plddt, 100)
     figure.set_figwidth(5)

@@ -345,6 +345,10 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         "mean_pae": [],
         "top_max_pae": [],
         "mean_max_pae": [],
+        "top_ptm": [],
+        "mean_ptm": [],
+        "top_iptm": [],
+        "mean_iptm": [],
         "wt": [],
     }
     for result_file in tqdm(
@@ -381,6 +385,16 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         mean_max_pae = file_utils.get_average_metric(
             result_dir, top_only=False, metric="max_pae"
         )
+        top_ptm = file_utils.get_average_metric(result_dir, top_only=True, metric="ptm")
+        mean_ptm = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="ptm"
+        )
+        top_iptm = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="iptm"
+        )
+        mean_iptm = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="iptm"
+        )
 
         oligomer_seqs["design_id"].append(design_id)
         oligomer_seqs["oligomer"].append(oligomer)
@@ -390,6 +404,10 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         oligomer_seqs["mean_pae"].append(mean_pae)
         oligomer_seqs["top_max_pae"].append(top_max_pae)
         oligomer_seqs["mean_max_pae"].append(mean_max_pae)
+        oligomer_seqs["top_ptm"].append(top_ptm)
+        oligomer_seqs["mean_ptm"].append(mean_ptm)
+        oligomer_seqs["top_iptm"].append(top_iptm)
+        oligomer_seqs["mean_iptm"].append(mean_iptm)
         oligomer_seqs["wt"].append(True)
 
     # Process the expanded oligomers
@@ -433,6 +451,16 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         mean_max_pae = file_utils.get_average_metric(
             result_dir, top_only=False, metric="max_pae"
         )
+        top_ptm = file_utils.get_average_metric(result_dir, top_only=True, metric="ptm")
+        mean_ptm = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="ptm"
+        )
+        top_iptm = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="iptm"
+        )
+        mean_iptm = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="iptm"
+        )
 
         oligomer_seqs["design_id"].append(design_id)
         oligomer_seqs["oligomer"].append(oligomer)
@@ -442,6 +470,10 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         oligomer_seqs["mean_pae"].append(mean_pae)
         oligomer_seqs["top_max_pae"].append(top_max_pae)
         oligomer_seqs["mean_max_pae"].append(mean_max_pae)
+        oligomer_seqs["top_ptm"].append(top_ptm)
+        oligomer_seqs["mean_ptm"].append(mean_ptm)
+        oligomer_seqs["top_iptm"].append(top_iptm)
+        oligomer_seqs["mean_iptm"].append(mean_iptm)
         oligomer_seqs["wt"].append(False)
 
     # summarize the oligomer results into a dataframe for use in plotting etc.
