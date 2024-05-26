@@ -30,6 +30,13 @@ class SelectSeq(NamedTuple):
     selection: str
     top_plddt: float
     mean_plddt: float
+    top_pae: float
+    mean_pae: float
+    top_ptm: float
+    mean_ptm: float
+    top_iptm: float
+    mean_iptm: float
+    top_mpnn: float
     top_rmsd: float
     mean_rmsd: float
     top_hydrophobicity: float
@@ -200,9 +207,30 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
             result_dir,
         )
 
-        # pull out plddts
-        top_plddt = file_utils.get_average_metric(result_dir, top_only=True)
-        mean_plddt = file_utils.get_average_metric(result_dir, top_only=False)
+        # pull out plddts and other confidence metrics
+        top_plddt = file_utils.get_average_metric(
+            result_dir, metric="plddt", top_only=True
+        )
+        mean_plddt = file_utils.get_average_metric(
+            result_dir, metric="plddt", top_only=False
+        )
+        top_pae = file_utils.get_average_metric(result_dir, metric="pae", top_only=True)
+        mean_pae = file_utils.get_average_metric(
+            result_dir, metric="pae", top_only=False
+        )
+        top_ptm = file_utils.get_average_metric(result_dir, metric="ptm", top_only=True)
+        mean_ptm = file_utils.get_average_metric(
+            result_dir, metric="ptm", top_only=False
+        )
+        top_iptm = file_utils.get_average_metric(
+            result_dir, metric="iptm", top_only=True
+        )
+        mean_iptm = file_utils.get_average_metric(
+            result_dir, metric="iptm", top_only=False
+        )
+        top_mpnn = proteinmpnn.compute_ca_score(
+            file_utils.get_pdb_by_rank(result_dir, 1), config
+        )
 
         # compute RMSD and hydrophobicity
         input_pdb = paths.get_input_pdb_path(config)
@@ -229,6 +257,13 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
             selection=proteinmpnn_seq.selection,
             top_plddt=top_plddt,
             mean_plddt=mean_plddt,
+            top_pae=top_pae,
+            mean_pae=mean_pae,
+            top_ptm=top_ptm,
+            mean_ptm=mean_ptm,
+            top_iptm=top_iptm,
+            mean_iptm=mean_iptm,
+            top_mpnn=top_mpnn,
             top_rmsd=top_rmsd,
             mean_rmsd=mean_rmsd,
             top_hydrophobicity=top_hydrophobicity,
@@ -254,7 +289,19 @@ def compile_alphafold_oligomer_results(
     file_utils.keep_files_by_suffix(alphafold_result_dir, [".zip"])
 
     # for each result, pull out alphafold metrics and combine with proteinmpnn metrics
-    oligomer_seqs = {"design_id": [], "oligomer": [], "top_plddt": [], "mean_plddt": []}
+    oligomer_seqs = {
+        "design_id": [],
+        "oligomer": [],
+        "top_plddt": [],
+        "mean_plddt": [],
+        "top_pae": [],
+        "mean_pae": [],
+        "top_ptm": [],
+        "mean_ptm": [],
+        "top_iptm": [],
+        "mean_iptm": [],
+        "top_mpnn": [],
+    }
     for result_file in tqdm(
         list(alphafold_result_dir.glob("*.zip")), desc="Computing Alphafold Results"
     ):
@@ -272,14 +319,42 @@ def compile_alphafold_oligomer_results(
         design_id = "_".join(id_parts[:-1])
         oligomer = int(id_parts[-1])
 
-        # pull out plddts
-        top_plddt = file_utils.get_average_metric(result_dir, top_only=True)
-        mean_plddt = file_utils.get_average_metric(result_dir, top_only=False)
+        # pull out plddts and other confidence metrics
+        top_plddt = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="plddt"
+        )
+        mean_plddt = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="plddt"
+        )
+        top_pae = file_utils.get_average_metric(result_dir, top_only=True, metric="pae")
+        mean_pae = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="pae"
+        )
+        top_ptm = file_utils.get_average_metric(result_dir, top_only=True, metric="ptm")
+        mean_ptm = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="ptm"
+        )
+        top_iptm = file_utils.get_average_metric(
+            result_dir, top_only=True, metric="iptm"
+        )
+        mean_iptm = file_utils.get_average_metric(
+            result_dir, top_only=False, metric="iptm"
+        )
+        top_mpnn = proteinmpnn.compute_ca_score(
+            file_utils.get_pdb_by_rank(result_dir, 1), config
+        )
 
         oligomer_seqs["design_id"].append(design_id)
         oligomer_seqs["oligomer"].append(oligomer)
         oligomer_seqs["top_plddt"].append(top_plddt)
         oligomer_seqs["mean_plddt"].append(mean_plddt)
+        oligomer_seqs["top_pae"].append(top_pae)
+        oligomer_seqs["mean_pae"].append(mean_pae)
+        oligomer_seqs["top_ptm"].append(top_ptm)
+        oligomer_seqs["mean_ptm"].append(mean_ptm)
+        oligomer_seqs["top_iptm"].append(top_iptm)
+        oligomer_seqs["mean_iptm"].append(mean_iptm)
+        oligomer_seqs["top_mpnn"].append(top_mpnn)
 
     # add in the initial designed oligomer metrics so we can compare against the oliogmer checked ones above
     for designed_seq in designed_seqs:
@@ -287,6 +362,13 @@ def compile_alphafold_oligomer_results(
         oligomer_seqs["oligomer"].append(config["multimer"])
         oligomer_seqs["top_plddt"].append(designed_seq.top_plddt)
         oligomer_seqs["mean_plddt"].append(designed_seq.mean_plddt)
+        oligomer_seqs["top_pae"].append(designed_seq.top_pae)
+        oligomer_seqs["mean_pae"].append(designed_seq.mean_pae)
+        oligomer_seqs["top_ptm"].append(designed_seq.top_ptm)
+        oligomer_seqs["mean_ptm"].append(designed_seq.mean_ptm)
+        oligomer_seqs["top_iptm"].append(designed_seq.top_iptm)
+        oligomer_seqs["mean_iptm"].append(designed_seq.mean_iptm)
+        oligomer_seqs["top_mpnn"].append(designed_seq.top_mpnn)
 
     # summarize the oligomer results
     oligomer_df = pd.DataFrame().from_dict(oligomer_seqs)
@@ -315,6 +397,13 @@ def compile_alphafold_oligomer_results(
             selection=designed_seq.selection,
             top_plddt=designed_seq.top_plddt,
             mean_plddt=designed_seq.mean_plddt,
+            top_pae=designed_seq.top_pae,
+            mean_pae=designed_seq.mean_pae,
+            top_ptm=designed_seq.top_ptm,
+            mean_ptm=designed_seq.mean_ptm,
+            top_iptm=designed_seq.top_iptm,
+            mean_iptm=designed_seq.mean_iptm,
+            top_mpnn=designed_seq.top_mpnn,
             top_rmsd=designed_seq.top_rmsd,
             mean_rmsd=designed_seq.mean_rmsd,
             top_hydrophobicity=designed_seq.top_hydrophobicity,
@@ -373,7 +462,7 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         design_id = "_".join(id_parts[:2])
         oligomer = int(id_parts[-1])
 
-        # pull out plddts and pae
+        # pull out plddts and other confidence metrics
         top_plddt = file_utils.get_average_metric(
             result_dir, top_only=True, metric="plddt"
         )
@@ -527,7 +616,6 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
 
     # summarize the oligomer results into a dataframe for use in plotting etc.
     oligomer_df = pd.DataFrame().from_dict(oligomer_seqs)
-    # TODO: consider here computing rank-based values to put directly into the output for e.g. plotting
     oligomer_df.to_csv(Path(config["directory"]) / "oligomer_values.csv")
 
     return oligomer_df
@@ -689,6 +777,13 @@ def load_alphafold(config: dict, phase: str, stage: str) -> list[SelectSeq]:
             selection=seq["selection"],
             top_plddt=seq["top_plddt"],
             mean_plddt=seq["mean_plddt"],
+            top_pae=seq["top_pae"],
+            mean_pae=seq["mean_pae"],
+            top_ptm=seq["top_ptm"],
+            mean_ptm=seq["mean_ptm"],
+            top_iptm=seq["top_iptm"],
+            mean_iptm=seq["mean_iptm"],
+            top_mpnn=seq["top_mpnn"],
             top_rmsd=seq["top_rmsd"],
             mean_rmsd=seq["mean_rmsd"],
             top_hydrophobicity=seq["top_hydrophobicity"],

@@ -580,4 +580,4 @@ def compute_ca_score(pdb: Path, config: dict) -> float:
     # pull out the score
     score = np.load(score_file)["score"][0]
 
-    return score
+    return float(score)
