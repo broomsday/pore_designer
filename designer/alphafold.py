@@ -37,6 +37,7 @@ class SelectSeq(NamedTuple):
     top_iptm: float
     mean_iptm: float
     top_mpnn: float
+    top_mpnn_delta: float
     top_rmsd: float
     mean_rmsd: float
     top_hydrophobicity: float
@@ -228,7 +229,7 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
         mean_iptm = file_utils.get_average_metric(
             result_dir, metric="iptm", top_only=False
         )
-        top_mpnn = proteinmpnn.compute_ca_score(
+        top_mpnn, top_mpnn_delta = proteinmpnn.compute_mpnn_oligomer_scores(
             file_utils.get_pdb_by_rank(result_dir, 1), config
         )
 
@@ -264,6 +265,7 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
             top_iptm=top_iptm,
             mean_iptm=mean_iptm,
             top_mpnn=top_mpnn,
+            top_mpnn_delta=top_mpnn_delta,
             top_rmsd=top_rmsd,
             mean_rmsd=mean_rmsd,
             top_hydrophobicity=top_hydrophobicity,
@@ -301,6 +303,7 @@ def compile_alphafold_oligomer_results(
         "top_iptm": [],
         "mean_iptm": [],
         "top_mpnn": [],
+        "top_mpnn_delta": [],
     }
     for result_file in tqdm(
         list(alphafold_result_dir.glob("*.zip")), desc="Computing Alphafold Results"
@@ -340,7 +343,7 @@ def compile_alphafold_oligomer_results(
         mean_iptm = file_utils.get_average_metric(
             result_dir, top_only=False, metric="iptm"
         )
-        top_mpnn = proteinmpnn.compute_ca_score(
+        top_mpnn, top_mpnn_delta = proteinmpnn.compute_mpnn_oligomer_scores(
             file_utils.get_pdb_by_rank(result_dir, 1), config
         )
 
@@ -355,6 +358,7 @@ def compile_alphafold_oligomer_results(
         oligomer_seqs["top_iptm"].append(top_iptm)
         oligomer_seqs["mean_iptm"].append(mean_iptm)
         oligomer_seqs["top_mpnn"].append(top_mpnn)
+        oligomer_seqs["top_mpnn_delta"].append(top_mpnn_delta)
 
     # add in the initial designed oligomer metrics so we can compare against the oliogmer checked ones above
     for designed_seq in designed_seqs:
@@ -369,6 +373,7 @@ def compile_alphafold_oligomer_results(
         oligomer_seqs["top_iptm"].append(designed_seq.top_iptm)
         oligomer_seqs["mean_iptm"].append(designed_seq.mean_iptm)
         oligomer_seqs["top_mpnn"].append(designed_seq.top_mpnn)
+        oligomer_seqs["top_mpnn_delta"].append(designed_seq.top_mpnn_delta)
 
     # summarize the oligomer results
     oligomer_df = pd.DataFrame().from_dict(oligomer_seqs)
@@ -404,6 +409,7 @@ def compile_alphafold_oligomer_results(
             top_iptm=designed_seq.top_iptm,
             mean_iptm=designed_seq.mean_iptm,
             top_mpnn=designed_seq.top_mpnn,
+            top_mpnn_delta=designed_seq.top_mpnn_delta,
             top_rmsd=designed_seq.top_rmsd,
             mean_rmsd=designed_seq.mean_rmsd,
             top_hydrophobicity=designed_seq.top_hydrophobicity,
@@ -443,6 +449,7 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         "top_quad": [],
         "mean_quad": [],
         "top_mpnn": [],
+        "top_mpnn_delta": [],
         "wt": [],
     }
     for result_file in tqdm(
@@ -505,7 +512,7 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
                 mean_iptm,
             ]
         )
-        top_mpnn_ca_score = proteinmpnn.compute_ca_score(
+        top_mpnn, top_mpnn_delta = proteinmpnn.compute_mpnn_oligomer_scores(
             file_utils.get_pdb_by_rank(result_dir, 1), config
         )
 
@@ -523,7 +530,8 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         oligomer_seqs["mean_iptm"].append(mean_iptm)
         oligomer_seqs["top_quad"].append(top_quad_score)
         oligomer_seqs["mean_quad"].append(mean_quad_score)
-        oligomer_seqs["top_mpnn"].append(top_mpnn_ca_score)
+        oligomer_seqs["top_mpnn"].append(top_mpnn)
+        oligomer_seqs["top_mpnn_delta"].append(top_mpnn_delta)
         oligomer_seqs["wt"].append(True)
 
     # Process the expanded oligomers
@@ -593,7 +601,7 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
                 mean_iptm,
             ]
         )
-        top_mpnn_ca_score = proteinmpnn.compute_ca_score(
+        top_mpnn, top_mpnn_delta = proteinmpnn.compute_mpnn_oligomer_scores(
             file_utils.get_pdb_by_rank(result_dir, 1), config
         )
 
@@ -611,7 +619,8 @@ def compile_alphafold_metric_results(config: dict) -> pd.DataFrame:
         oligomer_seqs["mean_iptm"].append(mean_iptm)
         oligomer_seqs["top_quad"].append(top_quad_score)
         oligomer_seqs["mean_quad"].append(mean_quad_score)
-        oligomer_seqs["top_mpnn"].append(top_mpnn_ca_score)
+        oligomer_seqs["top_mpnn"].append(top_mpnn)
+        oligomer_seqs["top_mpnn_delta"].append(top_mpnn_delta)
         oligomer_seqs["wt"].append(False)
 
     # summarize the oligomer results into a dataframe for use in plotting etc.
@@ -784,6 +793,7 @@ def load_alphafold(config: dict, phase: str, stage: str) -> list[SelectSeq]:
             top_iptm=seq["top_iptm"],
             mean_iptm=seq["mean_iptm"],
             top_mpnn=seq["top_mpnn"],
+            top_mpnn_delta=seq["top_mpnn_delta"],
             top_rmsd=seq["top_rmsd"],
             mean_rmsd=seq["mean_rmsd"],
             top_hydrophobicity=seq["top_hydrophobicity"],

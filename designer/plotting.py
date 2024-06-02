@@ -21,6 +21,7 @@ METRICS = {
     "top_quad": "higher",
     "mean_quad": "higher",
     "top_mpnn": "lower",
+    "top_mpnn_delta": "lower",
 }
 
 FONTSIZE = 12
@@ -31,6 +32,7 @@ PLOT_Y_LIMS = {
     "ptm": [0, 1],
     "iptm": [0, 1],
     "mpnn": [0, 3],
+    "mpnn_delta": [-1, 1],
 }
 
 

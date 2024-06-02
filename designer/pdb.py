@@ -7,7 +7,7 @@ import itertools
 
 import numpy as np
 import biotite.structure as bts
-from biotite.structure.io import load_structure
+from biotite.structure.io import load_structure, save_structure
 
 from designer.constants import AMINO_ACID_THREE_TO_ONE, HYDROPHOBIC_ELEMENTS
 
@@ -236,3 +236,41 @@ def compute_hydrophobicity(pdb_file: Path) -> float:
     total_hydrophobic_sasa = np.sum(hydrophobic_sasa)
 
     return total_hydrophobic_sasa / total_sasa
+
+
+def make_chain_moved_pdb(
+    original_pdb: Path, moved_pdb_directory: Path, distance: float = 100
+) -> Path:
+    """
+    Take the original PDB, and move the first chain `distance` angstroms along the vector
+    connecting the COM of whole PDB to the COM of the chain.
+    """
+    structure = load_structure(original_pdb)
+
+    chains = bts.get_chains(structure)
+    if len(chains) == 1:
+        # don't try to move anything since this is just a monomer
+        return original_pdb
+
+    mobile_chain = chains[0]
+    mobile_structure = structure[structure.chain_id == mobile_chain]
+    fixed_structure = structure[structure.chain_id != mobile_chain]
+
+    all_com = bts.centroid(structure)
+    mobile_com = bts.centroid(mobile_structure)
+    move_vector = mobile_com - all_com
+
+    magnitude = np.linalg.norm(move_vector)
+    if magnitude == 0:
+        raise ValueError(
+            f"{original_pdb} has a first chain whose COM overlaps with the full structure COM"
+        )
+    move_unit_vector = move_vector / magnitude
+
+    moved_mobile = bts.translate(mobile_structure, move_unit_vector * distance)
+
+    chain_moved_structure = fixed_structure + moved_mobile
+    save_path = moved_pdb_directory / original_pdb.name
+    save_structure(save_path, chain_moved_structure)
+
+    return save_path

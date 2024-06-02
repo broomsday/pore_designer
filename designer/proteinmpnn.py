@@ -15,7 +15,7 @@ import biotite.structure as bts
 from biotite.structure.io import load_structure
 from tqdm import tqdm
 
-from designer import paths, sequence
+from designer import paths, sequence, pdb
 from designer.constants import MPNN_HIT_TYPE_ORDER, PSSM_AA_ORDER
 
 
@@ -105,15 +105,15 @@ def rekey_proteinmpnn_dict(dict_path: Path) -> None:
 
 def make_shell_script(
     config: dict,
-    pdb: Path | None = None,
+    pdb_file: Path | None = None,
     out_folder: str | None = None,
     designs: int | None = None,
 ) -> str:
     """
     Generate a shell script to run the remaining ProteinMPNN jobs needed.
     """
-    if pdb is None:
-        pdb = config["input_pdb"]
+    if pdb_file is None:
+        pdb_file = config["input_pdb"]
 
     if out_folder is None:
         mpnn_folder = get_proteinmpnn_folder(config)
@@ -136,7 +136,7 @@ def make_shell_script(
     shell_script += "conda deactivate\n"
     shell_script += f"conda activate {paths.get_proteinmpnn_env_path()}\n"
     shell_script += f"python {paths.get_proteinmpnn_path()}/protein_mpnn_run.py "
-    shell_script += f"--pdb_path {pdb} "
+    shell_script += f"--pdb_path {pdb_file} "
     if tied is not None:
         shell_script += f"--tied_positions_jsonl {tied} "
     if fixed is not None:
@@ -546,26 +546,23 @@ def save_pssm(pssm_dict: dict[str, dict[str, dict]], pssm_file: Path) -> None:
             writer.write(pssm_dict)
 
 
-def compute_ca_score(pdb: Path, config: dict) -> float:
+def compute_ca_score(score_pdb: Path, out_dir: Path) -> float:
     """
-    Use the Ca-only model to quickly compute the score for a PDB.
+    Use the Ca-only model to compute the score for a PDB
     """
-    mpnn_folder = Path(config["directory"]) / "ProteinMPNN" / "oligomer"
-    mpnn_folder.mkdir(exist_ok=True, parents=True)
-
     # make the Ca-only scoring shell script
     shell_script = "#!/bin/bash\n\n"
     shell_script += f"source {paths.get_proteinmpnn_conda_source_path()}\n"
     shell_script += "conda deactivate\n"
     shell_script += f"conda activate {paths.get_proteinmpnn_env_path()}\n"
     shell_script += f"python {paths.get_proteinmpnn_path()}/protein_mpnn_run.py "
-    shell_script += f"--pdb_path {pdb} "
-    shell_script += f"--out_folder {mpnn_folder} "
+    shell_script += f"--pdb_path {score_pdb} "
+    shell_script += f"--out_folder {out_dir} "
     shell_script += "--ca_only "
     shell_script += "--score_only 1 "
 
     # check to see if the file exists already and run if not
-    score_file = mpnn_folder / "score_only" / f"{pdb.stem}_pdb.npz"
+    score_file = out_dir / "score_only" / f"{score_pdb.stem}_pdb.npz"
     if not score_file.is_file():
         # run ProteinMPNN
         print("Running ProteinMPNN")
@@ -580,4 +577,24 @@ def compute_ca_score(pdb: Path, config: dict) -> float:
     # pull out the score
     score = np.load(score_file)["score"][0]
 
-    return float(score)
+    return score
+
+
+def compute_mpnn_oligomer_scores(pdb_file: Path, config: dict) -> tuple[float, float]:
+    """
+    Use the Ca-only model to:
+
+    1. Compute the score for a PDB.
+    2. Compute the delta between the above and when one chain is moved out 100 angstroms.
+    """
+    oligomer_folder = Path(config["directory"]) / "ProteinMPNN" / "oligomer"
+    oligomer_folder.mkdir(exist_ok=True, parents=True)
+    score = compute_ca_score(pdb_file, oligomer_folder)
+
+    moved_folder = Path(config["directory"]) / "ProteinMPNN" / "oligomer" / "moved"
+    moved_folder.mkdir(exist_ok=True)
+    moved_pdb = pdb.make_chain_moved_pdb(pdb_file, moved_folder)
+    moved_score = compute_ca_score(moved_pdb, moved_folder)
+    delta_score = moved_score - score
+
+    return (score, delta_score)
