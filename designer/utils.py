@@ -47,6 +47,7 @@ def make_minimal_select_seq(
         mean_iptm=None,
         top_mpnn=None,
         top_mpnn_delta=None,
+        top_mpnn_avg=None,
         top_rmsd=None,
         mean_rmsd=None,
         top_hydrophobicity=None,

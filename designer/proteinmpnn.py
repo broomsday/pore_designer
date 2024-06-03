@@ -577,7 +577,7 @@ def compute_ca_score(score_pdb: Path, out_dir: Path) -> float:
     # pull out the score
     score = np.load(score_file)["score"][0]
 
-    return score
+    return float(score)
 
 
 def compute_mpnn_oligomer_scores(pdb_file: Path, config: dict) -> tuple[float, float]:

@@ -22,6 +22,7 @@ METRICS = {
     "mean_quad": "higher",
     "top_mpnn": "lower",
     "top_mpnn_delta": "lower",
+    "top_mpnn_avg": "lower",
 }
 
 FONTSIZE = 12
