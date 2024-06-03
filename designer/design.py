@@ -156,7 +156,7 @@ def design_pore_negative(
     if proteinmpnn.get_num_to_design(config, out_folder=positive_pdb.stem) > 0:
         proteinmpnn.rename_existing_results(config, out_folder=positive_pdb.stem)
         proteinmpnn_script = proteinmpnn.make_shell_script(
-            config, pdb=positive_pdb, out_folder=positive_pdb.stem
+            config, pdb_file=positive_pdb, out_folder=positive_pdb.stem
         )
         proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
@@ -170,7 +170,7 @@ def design_pore_negative(
         if proteinmpnn.get_num_to_design(config, out_folder=negative_pdb.stem) > 0:
             proteinmpnn.rename_existing_results(config, out_folder=negative_pdb.stem)
             proteinmpnn_script = proteinmpnn.make_shell_script(
-                config, pdb=negative_pdb, out_folder=negative_pdb.stem
+                config, pdb_file=negative_pdb, out_folder=negative_pdb.stem
             )
             proteinmpnn.run_proteinmpnn(proteinmpnn_script)
 
@@ -299,7 +299,7 @@ def design_pore_negative(
                 proteinmpnn.rename_existing_results(config, out_folder="bias")
                 proteinmpnn_script = proteinmpnn.make_shell_script(
                     config,
-                    pdb=positive_pdb,
+                    pdb_file=positive_pdb,
                     out_folder="bias",
                     designs=config["num_af2_bias"],
                 )
