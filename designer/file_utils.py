@@ -23,7 +23,7 @@ def keep_files_by_suffix(folder: Path, suffixes: list[str]) -> None:
             os.remove(file_path)
 
 
-def unzip_af2_prediction(zip_file: Path, folder: Path) -> None:
+def unzip_af2_prediction(zip_file: Path, folder: Path, cleanup: bool = True) -> None:
     """
     Unzip a file into a new directory
     """
@@ -46,8 +46,8 @@ def unzip_af2_prediction(zip_file: Path, folder: Path) -> None:
     subprocess.run(["unzip", file_name], stdout=subprocess.DEVNULL, check=False)
     os.chdir(cwd)
 
-    # cleanup
-    clean_af2_prediction_files(folder)
+    if cleanup:
+        clean_af2_prediction_files(folder)
 
 
 def clean_af2_prediction_files(unzip_dir: Path) -> None:
