@@ -105,9 +105,7 @@ def main(
     plot_dir.mkdir(exist_ok=True)
     designs = {name for name in data_df.name}
     for design in designs:
-        design_dir = plot_dir / str(design)
-        design_dir.mkdir(exist_ok=True)
-        plot_multiseed_plddts(data_df[data_df.name == design], plot_dir / design / "plddt.png")
+        plot_multiseed_plddts(data_df[data_df.name == design], plot_dir / f"{design}_plddt.png")
 
 
 if __name__ == "__main__":
