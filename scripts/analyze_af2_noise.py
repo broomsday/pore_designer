@@ -69,6 +69,7 @@ def plot_multiseed_plddts(data: pd.DataFrame, save: Path):
     plt.ylabel("pLDDT")
 
     plt.savefig(save)
+    plt.close()
 
 
 def main(
