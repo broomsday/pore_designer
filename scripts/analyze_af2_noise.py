@@ -67,6 +67,7 @@ def plot_multiseed_plddts(data: pd.DataFrame, save: Path):
     plt.title(data["name"].to_list()[0])
     plt.xlabel("Oligomer")
     plt.ylabel("pLDDT")
+    plt.ylim(30, 100)
 
     plt.savefig(save)
     plt.close()
