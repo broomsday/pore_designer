@@ -110,6 +110,9 @@ def get_average_metric(
     except UnicodeDecodeError as exception:
         print(f"Corrupted file for {result_fp} in {results_dir}")
         raise exception
+    except ValueError as exception:
+        print(f"Corrupted file for {result_fp} in {results_dir}")
+        raise exception
 
     return mean_metric
 
