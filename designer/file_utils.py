@@ -107,10 +107,9 @@ def get_average_metric(
         raise FileNotFoundError(
             f"This does not appear to be a directory of AlphaFold2 results. {results_dir}"
         )
-    except UnicodeDecodeError:
-        raise UnicodeDecodeError(
-            f"Corrupted file for {result_fp} in {results_dir}"
-        )
+    except UnicodeDecodeError as exception:
+        print(f"Corrupted file for {result_fp} in {results_dir}")
+        raise exception
 
     return mean_metric
 
