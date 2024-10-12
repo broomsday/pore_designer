@@ -215,11 +215,15 @@ def compute_rmsd_to_template(
     return float(np.mean(rmsds))
 
 
-def compute_hydrophobicity(pdb_file: Path) -> float:
+def compute_hydrophobicity(pdb_file_or_result_dir: Path) -> float:
     """
     Compute the fraction of the total SASA that is made up of hydrophobic atoms.
     """
-    structure = load_structure(pdb_file)
+    if pdb_file_or_result_dir.is_file():
+        structure = load_structure(pdb_file_or_result_dir)
+    else:
+        top_pdb = [pdb for pdb in list(pdb_file_or_result_dir.glob("*.pdb")) if "rank_001" in pdb.stem][0]
+        structure = load_structure(top_pdb)
 
     # consider only heavy atoms, otherwise we'd need to know what an H was bound to
     structure = structure[structure.element != "H"]

@@ -239,7 +239,7 @@ def compile_alphafold_design_results(config: dict) -> list[SelectSeq]:
         input_pdb = paths.get_input_pdb_path(config)
         top_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=True)
         mean_rmsd = pdb.compute_rmsd_to_template(result_dir, input_pdb, top_only=False)
-        top_hydrophobicity = pdb.compute_hydrophobicity(input_pdb)
+        top_hydrophobicity = pdb.compute_hydrophobicity(result_dir)
 
         # cross-reference the sequence with proteinmpnn to get proteinmpnn metrics
         merged_sequence = alphafold_input.loc[sequence_id].sequence
