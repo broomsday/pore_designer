@@ -74,13 +74,40 @@ def make_symmetry_dict(pdb_file: Path) -> dict:
     return tied_positions_dict
 
 
+def save_proteinmpnn_jsonl_dict(dict: dict, save_path: Path) -> None:
+    """
+    Save a ProteinMPNN jsonl dictionary.
+    """
+    with open(save_path, mode="wb") as fp:
+        with jsonlines.Writer(fp) as writer:
+            writer.write(dict)
+
+
 def save_symmetry_dict(symmetry_dict: dict, symmetry_file: Path) -> None:
     """
     Save the ProteinMPNN symmetry dictionary.
     """
-    with open(symmetry_file, mode="wb") as fp:
-        with jsonlines.Writer(fp) as writer:
-            writer.write(symmetry_dict)
+    save_proteinmpnn_jsonl_dict(symmetry_dict, symmetry_file)
+
+
+def make_aa_bias_dict(amino_acids: list[str], bias: float) -> dict:
+    """
+    Make a bias dict for biasing amino acids.
+    """
+    return {amino_acid: bias for amino_acid in amino_acids}
+
+
+def make_symmetric_fixed_positions_dict(input_stem: str, chains: list[str], positions: list[int]) -> dict:
+    """
+    Generate a dictionary of fixed positions for saving as a jsonl.
+
+    Will fix ALL chains provided at the same positions.
+    """
+    return {
+        input_stem: {
+            chain: positions for chain in chains
+        }
+    }
 
 
 def rekey_proteinmpnn_dict(dict_path: Path) -> None:
