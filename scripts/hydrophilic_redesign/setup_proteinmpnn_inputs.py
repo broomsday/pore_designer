@@ -41,7 +41,9 @@ def main(
     """
     setup_dir.mkdir(exist_ok=True, parents=True)
     input_dir = setup_dir / "inputs"
+    input_dir.mkdir(exist_ok=True)
     output_dir = setup_dir / "outputs"
+    output_dir.mkdir(exist_ok=True)
 
     structure = load_pdb(input_pdb)
     file_copy(input_pdb, input_dir / input_pdb.name)
