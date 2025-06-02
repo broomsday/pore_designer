@@ -3,6 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import logomaker
 
 from designer import alphafold
 
@@ -279,3 +280,14 @@ def plot_metric_correlations(oligomer_values: pd.DataFrame, save_dir: Path) -> N
             "pdb"
         ].apply(get_top_predicted_by_metric, args=([metric, oligomer_values]))
         make_metric_correlation_plot(experimental_and_predicted, metric, save_dir)
+
+
+def seqlogo(sequences: list[str], save_png: Path) -> None:
+    """
+    Plot a sequence logo.
+
+    All sequences must be the same length.
+    """
+    logo_df = logomaker.alignment_to_matrix(sequences)
+    logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
+    logo.fig.savefig(directory / f"{pdb.stem}.png")

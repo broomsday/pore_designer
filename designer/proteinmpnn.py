@@ -78,7 +78,7 @@ def save_proteinmpnn_jsonl_dict(dict: dict, save_path: Path) -> None:
     """
     Save a ProteinMPNN jsonl dictionary.
     """
-    with open(save_path, mode="wb") as fp:
+    with open(save_path, mode="w") as fp:
         with jsonlines.Writer(fp) as writer:
             writer.write(dict)
 
