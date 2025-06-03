@@ -276,6 +276,16 @@ def get_wt_sequence(sequences: list[MPNNSeq]) -> MPNNSeq | None:
     return None
 
 
+def get_top_mpnn_sequences_by_score(sequences: list[MPNNSeq], num: int) -> list[MPNNSeq]:
+    """
+    Get the top `num` sequences by MPNN score.
+    """
+    if num > len(sequences):
+        raise AssertionError(f"Asked for {num} top sequences but only {len(sequences)} total provided.")
+
+    return sorted(sequences, key=lambda mpnnseq: mpnnseq.score, reverse=False)
+
+
 def select_top_sequences(config: dict) -> list[MPNNSeq]:
     """
     Compile the top sequences designed by ProteinMPNN.
