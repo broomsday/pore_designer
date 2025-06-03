@@ -290,4 +290,4 @@ def seqlogo(sequences: list[str], save_png: Path) -> None:
     """
     logo_df = logomaker.alignment_to_matrix(sequences)
     logo = logomaker.Logo(logo_df, color_scheme="weblogo_protein")
-    logo.fig.savefig(directory / f"{pdb.stem}.png")
+    logo.fig.savefig(save_png, dpi=300)
