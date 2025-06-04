@@ -278,12 +278,20 @@ def get_wt_sequence(sequences: list[MPNNSeq]) -> MPNNSeq | None:
 
 def get_top_mpnn_sequences_by_score(sequences: list[MPNNSeq], num: int) -> list[MPNNSeq]:
     """
-    Get the top `num` sequences by MPNN score.
-    """
-    if num > len(sequences):
-        raise AssertionError(f"Asked for {num} top sequences but only {len(sequences)} total provided.")
+    Get up to the top `num` sequences by MPNN score.
 
-    return sorted(sequences, key=lambda mpnnseq: mpnnseq.score, reverse=False)[:num]
+    Do not count duplicates.
+    """
+    top_mpnn_seqs, top_merged_seqs = [], []
+    for seq in sorted(sequences, key=lambda mpnnseq: mpnnseq.score, reverse=False):
+        if seq.merged_sequence not in top_merged_seqs:
+            top_merged_seqs.append(seq.merged_sequence)
+            top_mpnn_seqs.append(seq)
+
+        if len(top_mpnn_seqs) == num:
+            return top_mpnn_seqs
+
+    return top_mpnn_seqs
 
 
 def select_top_sequences(config: dict) -> list[MPNNSeq]:
