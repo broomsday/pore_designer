@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 import biotite.structure as bts
 from biotite.structure.io import save_structure
+
 from designer.proteinmpnn import make_symmetry_dict, make_aa_bias_dict, make_symmetric_fixed_positions_dict, save_proteinmpnn_jsonl_dict, rekey_proteinmpnn_dict
 from designer.pdb import clean_pdb, get_sequence
 

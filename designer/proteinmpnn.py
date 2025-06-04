@@ -283,7 +283,7 @@ def get_top_mpnn_sequences_by_score(sequences: list[MPNNSeq], num: int) -> list[
     if num > len(sequences):
         raise AssertionError(f"Asked for {num} top sequences but only {len(sequences)} total provided.")
 
-    return sorted(sequences, key=lambda mpnnseq: mpnnseq.score, reverse=False)
+    return sorted(sequences, key=lambda mpnnseq: mpnnseq.score, reverse=False)[:num]
 
 
 def select_top_sequences(config: dict) -> list[MPNNSeq]:
