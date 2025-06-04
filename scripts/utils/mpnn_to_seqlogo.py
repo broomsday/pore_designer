@@ -19,13 +19,13 @@ def main(
     Plot a sequence logo of all designs and the `top_num` designs
     """
     out_logo_dir.mkdir(exist_ok=True, parents=True)
-    
+
     mpnn_sequences = get_sequences(in_mpnn_fasta)
-    top_sequences = get_top_mpnn_sequences_by_score(mpnn_sequences, top_num)
-    sequences = [mpnn_sequence.sequence[0] for mpnn_sequence in top_sequences]
+    seqlogo([mpnn_sequence.sequence[0] for mpnn_sequence in mpnn_sequences], out_logo_dir / "seq_logo_all.png")
 
-    seqlogo(sequences, out_logo_dir / "seq_logo.png")
-
+    top_mpnn_sequences = get_top_mpnn_sequences_by_score(mpnn_sequences, top_num)
+    seqlogo([mpnn_sequence.sequence[0] for mpnn_sequence in top_mpnn_sequences], out_logo_dir / f"seq_logo_top_{top_num}.png")
+    
 
 if __name__ == "__main__":
     typer.run(main)
